@@ -1,0 +1,230 @@
+import { useState } from 'react';
+import { Plus, CreditCard as CardIcon, Trash2 } from 'lucide-react';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useCreditCards, useCardDetails } from '@/hooks/useCreditCards';
+import { formatCurrency, getCurrentMonth } from '@/lib/formatters';
+import { TransactionList } from '@/components/transactions/TransactionList';
+import { AddCardSheet } from '@/components/cards/AddCardSheet';
+import { CreditCard } from '@/lib/storage';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+const CARD_COLORS = [
+  'from-emerald-500 to-teal-600',
+  'from-blue-500 to-indigo-600',
+  'from-purple-500 to-pink-600',
+  'from-orange-500 to-red-600',
+  'from-cyan-500 to-blue-600',
+];
+
+function CardItem({
+  card,
+  index,
+  isSelected,
+  onClick,
+}: {
+  card: CreditCard;
+  index: number;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const { monthlyTotal, availableLimit } = useCardDetails(card.id);
+  const colorClass = CARD_COLORS[index % CARD_COLORS.length];
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left transition-transform ${isSelected ? 'scale-[1.02]' : ''}`}
+    >
+      <div
+        className={`relative h-40 rounded-2xl bg-gradient-to-br ${colorClass} p-5 shadow-lg overflow-hidden`}
+      >
+        {/* Card Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-4 right-4 h-16 w-16 rounded-full border-4 border-white/30" />
+          <div className="absolute top-8 right-8 h-16 w-16 rounded-full border-4 border-white/20" />
+        </div>
+
+        <div className="relative h-full flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <CardIcon className="h-8 w-8 text-white/80" />
+            <div className="text-right">
+              <p className="text-xs text-white/70">Fatura Atual</p>
+              <p className="text-lg font-bold text-white">
+                {formatCurrency(monthlyTotal)}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-white font-semibold">{card.name}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-white/80 font-mono text-sm">
+                •••• •••• •••• {card.last4 || '****'}
+              </p>
+              {card.limit && (
+                <p className="text-xs text-white/70">
+                  Limite: {formatCurrency(availableLimit)} disponível
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+export default function CardsPage() {
+  const { cards, loading, createCard, removeCard } = useCreditCards();
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [showAddSheet, setShowAddSheet] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState<CreditCard | null>(null);
+
+  const selectedCard = cards.find(c => c.id === selectedCardId);
+  const { purchases, monthlyTotal, availableLimit } = useCardDetails(selectedCardId || '');
+
+  const handleDeleteCard = async () => {
+    if (cardToDelete) {
+      await removeCard(cardToDelete.id);
+      if (selectedCardId === cardToDelete.id) {
+        setSelectedCardId(null);
+      }
+      setCardToDelete(null);
+    }
+  };
+
+  return (
+    <PageContainer
+      header={
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Cartões</h1>
+          <Button onClick={() => setShowAddSheet(true)} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            Novo
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        {/* Cards List */}
+        {cards.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <CardIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Nenhum cartão cadastrado</p>
+              <Button className="mt-4" onClick={() => setShowAddSheet(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Adicionar Cartão
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {cards.map((card, index) => (
+              <CardItem
+                key={card.id}
+                card={card}
+                index={index}
+                isSelected={selectedCardId === card.id}
+                onClick={() =>
+                  setSelectedCardId(selectedCardId === card.id ? null : card.id)
+                }
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Selected Card Details */}
+        {selectedCard && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                Detalhes - {selectedCard.name}
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setCardToDelete(selectedCard)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Excluir
+              </Button>
+            </div>
+
+            {/* Card Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card>
+                <CardContent className="pt-4">
+                  <p className="text-xs text-muted-foreground">Fatura Atual</p>
+                  <p className="text-xl font-bold">{formatCurrency(monthlyTotal)}</p>
+                </CardContent>
+              </Card>
+              {selectedCard.limit && (
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">Disponível</p>
+                    <p className="text-xl font-bold text-success">
+                      {formatCurrency(availableLimit)}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Purchases */}
+            <Card>
+              <CardContent className="pt-4">
+                <h3 className="font-medium mb-3">Compras Recentes</h3>
+                <TransactionList
+                  transactions={purchases.slice(0, 10)}
+                  emptyMessage="Nenhuma compra neste cartão"
+                />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* Add Card Sheet */}
+      <AddCardSheet
+        open={showAddSheet}
+        onOpenChange={setShowAddSheet}
+        onSubmit={createCard}
+      />
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!cardToDelete} onOpenChange={() => setCardToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cartão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cartão "{cardToDelete?.name}"? As
+              transações vinculadas a este cartão não serão excluídas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCard}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </PageContainer>
+  );
+}

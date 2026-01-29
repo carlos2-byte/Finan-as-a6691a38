@@ -1,0 +1,111 @@
+import { useState, useEffect, useCallback } from 'react';
+import {
+  CreditCard,
+  getCreditCards,
+  getCreditCardById,
+  addCreditCard,
+  updateCreditCard,
+  deleteCreditCard,
+  getCardPurchases,
+  getCardMonthlyTotal,
+  Transaction,
+} from '@/lib/storage';
+import { generateId, getCurrentMonth } from '@/lib/formatters';
+
+export function useCreditCards() {
+  const [cards, setCards] = useState<CreditCard[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadCards = useCallback(async () => {
+    setLoading(true);
+    try {
+      const loadedCards = await getCreditCards();
+      setCards(loadedCards);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCards();
+  }, [loadCards]);
+
+  const createCard = useCallback(
+    async (card: Omit<CreditCard, 'id'>) => {
+      const newCard: CreditCard = {
+        ...card,
+        id: generateId(),
+      };
+      await addCreditCard(newCard);
+      await loadCards();
+      return newCard;
+    },
+    [loadCards]
+  );
+
+  const editCard = useCallback(
+    async (card: CreditCard) => {
+      await updateCreditCard(card);
+      await loadCards();
+    },
+    [loadCards]
+  );
+
+  const removeCard = useCallback(
+    async (cardId: string) => {
+      await deleteCreditCard(cardId);
+      await loadCards();
+    },
+    [loadCards]
+  );
+
+  return {
+    cards,
+    loading,
+    createCard,
+    editCard,
+    removeCard,
+    refresh: loadCards,
+  };
+}
+
+export function useCardDetails(cardId: string) {
+  const [card, setCard] = useState<CreditCard | null>(null);
+  const [purchases, setPurchases] = useState<Transaction[]>([]);
+  const [monthlyTotal, setMonthlyTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const loadDetails = useCallback(async () => {
+    if (!cardId) return;
+    
+    setLoading(true);
+    try {
+      const [loadedCard, loadedPurchases, total] = await Promise.all([
+        getCreditCardById(cardId),
+        getCardPurchases(cardId),
+        getCardMonthlyTotal(cardId, getCurrentMonth()),
+      ]);
+      
+      setCard(loadedCard || null);
+      setPurchases(loadedPurchases);
+      setMonthlyTotal(total);
+    } finally {
+      setLoading(false);
+    }
+  }, [cardId]);
+
+  useEffect(() => {
+    loadDetails();
+  }, [loadDetails]);
+
+  const availableLimit = card?.limit ? card.limit - monthlyTotal : 0;
+
+  return {
+    card,
+    purchases,
+    monthlyTotal,
+    availableLimit,
+    loading,
+    refresh: loadDetails,
+  };
+}
