@@ -17,7 +17,7 @@ export interface Transaction {
   currentInstallment?: number;
   parentId?: string;
   createdAt?: string;
-  invoiceMonth?: string; 
+  invoiceMonth?: string; // Mês financeiro da fatura
 }
 
 export interface CreditCard {
@@ -26,8 +26,8 @@ export interface CreditCard {
   last4?: string;
   limit?: number;
   color?: string;
-  closingDay: number; 
-  dueDay: number; // Adicionado campo de vencimento
+  closingDay?: number; 
+  dueDay?: number; // Novo campo
 }
 
 const TRANSACTIONS_KEY = 'transactions';
@@ -59,6 +59,18 @@ export async function listTransactionObjects(): Promise<Record<string, Transacti
   return (await defaultAdapter.getItem<Record<string, Transaction>>(TRANSACTIONS_KEY, {})) ?? {};
 }
 
+export async function getTransactionsByMonth(month: string): Promise<Transaction[]> {
+  const txs = Object.values(await listTransactionObjects());
+  return txs
+    .filter(tx => {
+      if (tx.isCardPayment && tx.invoiceMonth) {
+        return tx.invoiceMonth === month;
+      }
+      return getMonthFromDate(tx.date) === month;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
 export async function saveTransaction(tx: Transaction): Promise<void> {
   const txs = await listTransactionObjects();
   tx.createdAt = tx.createdAt ?? new Date().toISOString();
@@ -66,10 +78,10 @@ export async function saveTransaction(tx: Transaction): Promise<void> {
   await defaultAdapter.setItem(TRANSACTIONS_KEY, txs);
 }
 
-// ... (Mantenha as outras funções de delete e listagem iguais ao seu original)
 export default {
-  addCreditCard,
   getCreditCards,
+  addCreditCard,
   saveTransaction,
-  listTransactionObjects,
+  getTransactionsByMonth,
+  listTransactionObjects
 };
