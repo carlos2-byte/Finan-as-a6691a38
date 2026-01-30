@@ -12,7 +12,9 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { getCategories, CreditCard, Transaction } from '@/lib/storage';
+import { getLocalDateString } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface AddTransactionSheetProps {
   open: boolean;
@@ -31,10 +33,11 @@ export function AddTransactionSheet({
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('other');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateString());
   const [isCardPayment, setIsCardPayment] = useState(false);
   const [cardId, setCardId] = useState('');
   const [installments, setInstallments] = useState(1);
+  const [customInstallments, setCustomInstallments] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categories = getCategories().filter(c => 
@@ -46,10 +49,11 @@ export function AddTransactionSheet({
     setAmount('');
     setDescription('');
     setCategory('other');
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(getLocalDateString());
     setIsCardPayment(false);
     setCardId('');
     setInstallments(1);
+    setCustomInstallments('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,6 +61,17 @@ export function AddTransactionSheet({
     
     const parsedAmount = parseFloat(amount.replace(',', '.'));
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+
+    // Get final installments value
+    let finalInstallments = installments;
+    if (installments === -1 && customInstallments) {
+      const parsed = parseInt(customInstallments);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 999) {
+        finalInstallments = parsed;
+      } else {
+        return; // Invalid custom value
+      }
+    }
 
     setIsSubmitting(true);
     try {
@@ -68,7 +83,7 @@ export function AddTransactionSheet({
         date,
         isCardPayment: type === 'expense' && isCardPayment,
         cardId: type === 'expense' && isCardPayment ? cardId : undefined,
-        installments: type === 'expense' && installments > 1 ? installments : undefined,
+        installments: finalInstallments > 1 ? finalInstallments : undefined,
       });
       resetForm();
       onOpenChange(false);
@@ -77,121 +92,138 @@ export function AddTransactionSheet({
     }
   };
 
+  // Installment options: 1-12 + custom option
+  const installmentOptions = [
+    { value: '1', label: '1x (à vista)' },
+    { value: '2', label: '2x' },
+    { value: '3', label: '3x' },
+    { value: '4', label: '4x' },
+    { value: '5', label: '5x' },
+    { value: '6', label: '6x' },
+    { value: '7', label: '7x' },
+    { value: '8', label: '8x' },
+    { value: '9', label: '9x' },
+    { value: '10', label: '10x' },
+    { value: '11', label: '11x' },
+    { value: '12', label: '12x' },
+    { value: '-1', label: 'Outro...' },
+  ];
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl">
-        <SheetHeader className="mb-6">
+        <SheetHeader className="mb-4">
           <SheetTitle>Nova Transação</SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Type Toggle */}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={type === 'expense' ? 'default' : 'outline'}
-              className={cn(
-                'flex-1',
-                type === 'expense' && 'bg-destructive hover:bg-destructive/90'
-              )}
-              onClick={() => {
-                setType('expense');
-                setCategory('other');
-              }}
-            >
-              Despesa
-            </Button>
-            <Button
-              type="button"
-              variant={type === 'income' ? 'default' : 'outline'}
-              className={cn(
-                'flex-1',
-                type === 'income' && 'bg-success hover:bg-success/90'
-              )}
-              onClick={() => {
-                setType('income');
-                setCategory('income');
-              }}
-            >
-              Receita
-            </Button>
-          </div>
-
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Valor</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                R$
-              </span>
-              <Input
-                id="amount"
-                type="text"
-                inputMode="decimal"
-                placeholder="0,00"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                className="pl-10 text-lg font-semibold"
-                required
-              />
+        <ScrollArea className="h-[calc(85vh-100px)]">
+          <form onSubmit={handleSubmit} className="space-y-5 pr-4">
+            {/* Type Toggle */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={type === 'expense' ? 'default' : 'outline'}
+                className={cn(
+                  'flex-1',
+                  type === 'expense' && 'bg-destructive hover:bg-destructive/90'
+                )}
+                onClick={() => {
+                  setType('expense');
+                  setCategory('other');
+                }}
+              >
+                Despesa
+              </Button>
+              <Button
+                type="button"
+                variant={type === 'income' ? 'default' : 'outline'}
+                className={cn(
+                  'flex-1',
+                  type === 'income' && 'bg-success hover:bg-success/90'
+                )}
+                onClick={() => {
+                  setType('income');
+                  setCategory('income');
+                }}
+              >
+                Receita
+              </Button>
             </div>
-          </div>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição (opcional)</Label>
-            <Input
-              id="description"
-              placeholder="Ex: Supermercado"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-            />
-          </div>
-
-          {/* Category (expenses only) */}
-          {type === 'expense' && (
+            {/* Amount */}
             <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Date */}
-          <div className="space-y-2">
-            <Label htmlFor="date">Data</Label>
-            <Input
-              id="date"
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-            />
-          </div>
-
-          {/* Card Payment (expenses only) */}
-          {type === 'expense' && cards.length > 0 && (
-            <>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="isCard">Pagamento no cartão</Label>
-                <Switch
-                  id="isCard"
-                  checked={isCardPayment}
-                  onCheckedChange={setIsCardPayment}
+              <Label htmlFor="amount">Valor</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  R$
+                </span>
+                <Input
+                  id="amount"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  className="pl-10 text-lg font-semibold"
+                  required
                 />
               </div>
+            </div>
 
-              {isCardPayment && (
-                <>
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição (opcional)</Label>
+              <Input
+                id="description"
+                placeholder="Ex: Supermercado"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+              />
+            </div>
+
+            {/* Category (expenses only) */}
+            {type === 'expense' && (
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Date */}
+            <div className="space-y-2">
+              <Label htmlFor="date">Data</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+              />
+            </div>
+
+            {/* Card Payment (expenses only) */}
+            {type === 'expense' && cards.length > 0 && (
+              <>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="isCard">Pagamento no cartão</Label>
+                  <Switch
+                    id="isCard"
+                    checked={isCardPayment}
+                    onCheckedChange={setIsCardPayment}
+                  />
+                </div>
+
+                {isCardPayment && (
                   <div className="space-y-2">
                     <Label>Cartão</Label>
                     <Select value={cardId} onValueChange={setCardId}>
@@ -207,84 +239,59 @@ export function AddTransactionSheet({
                       </SelectContent>
                     </Select>
                   </div>
+                )}
+              </>
+            )}
 
-                  <div className="space-y-2">
-                    <Label>Parcelas</Label>
-                    <Select
-                      value={String(installments)}
-                      onValueChange={v => setInstallments(parseInt(v))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
-                          <SelectItem key={n} value={String(n)}>
-                            {n}x {n === 1 ? '(à vista)' : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-          {/* Installments for non-card transactions */}
-          {type === 'expense' && !isCardPayment && (
-            <div className="space-y-2">
-              <Label>Parcelamento</Label>
-              <Select
-                value={String(installments)}
-                onValueChange={v => setInstallments(parseInt(v))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n}x {n === 1 ? '(à vista)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Income installments */}
-          {type === 'income' && (
+            {/* Installments - available for all transaction types */}
             <div className="space-y-2">
               <Label>Parcelas</Label>
               <Select
                 value={String(installments)}
-                onValueChange={v => setInstallments(parseInt(v))}
+                onValueChange={v => {
+                  const val = parseInt(v);
+                  setInstallments(val);
+                  if (val !== -1) {
+                    setCustomInstallments('');
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n}x {n === 1 ? '(única)' : ''}
+                  {installmentOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              
+              {installments === -1 && (
+                <Input
+                  type="number"
+                  min="1"
+                  max="999"
+                  placeholder="Número de parcelas (1-999)"
+                  value={customInstallments}
+                  onChange={e => setCustomInstallments(e.target.value)}
+                  className="mt-2"
+                />
+              )}
             </div>
-          )}
 
-          {/* Submit */}
-          <Button
-            type="submit"
-            className="w-full"
-            size="lg"
-            disabled={isSubmitting || !amount}
-          >
-            {isSubmitting ? 'Salvando...' : 'Adicionar'}
-          </Button>
-        </form>
+            {/* Submit */}
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={isSubmitting || !amount}
+            >
+              {isSubmitting ? 'Salvando...' : 'Adicionar'}
+            </Button>
+          </form>
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   );

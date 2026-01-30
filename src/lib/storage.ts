@@ -1,5 +1,6 @@
 import { defaultAdapter, StorageAdapter } from './storageAdapter';
 import { migrateSchemaOnce } from './migrations/migrateSchemaOnce';
+import { getMonthFromDate, getInvoiceMonth } from './dateUtils';
 
 export type Maybe<T> = T | undefined;
 
@@ -9,7 +10,7 @@ export type Maybe<T> = T | undefined;
 export interface Transaction {
   id: string;
   amount: number;
-  date: string;
+  date: string; // YYYY-MM-DD (LOCAL date)
   description?: string;
   category?: string;
   type: 'income' | 'expense';
@@ -19,6 +20,7 @@ export interface Transaction {
   currentInstallment?: number;
   parentId?: string; // For installment grouping
   createdAt?: string;
+  invoiceMonth?: string; // For card payments: which invoice this belongs to
 }
 
 const TRANSACTIONS_KEY = 'transactions';
@@ -32,6 +34,7 @@ export interface CreditCard {
   last4?: string;
   limit?: number;
   color?: string;
+  closingDay?: number; // Day of month when invoice closes (1-28)
 }
 
 const CARDS_KEY = 'creditCards';
@@ -125,9 +128,13 @@ export async function listTransactionObjects(): Promise<Record<string, Transacti
 
 export async function getAllTransactions(): Promise<Transaction[]> {
   const txs = await listTransactionObjects();
-  return Object.values(txs).sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  return Object.values(txs).sort((a, b) => {
+    // Sort by date (LOCAL comparison)
+    const dateCompare = b.date.localeCompare(a.date);
+    if (dateCompare !== 0) return dateCompare;
+    // If same date, sort by creation time
+    return (b.createdAt || '').localeCompare(a.createdAt || '');
+  });
 }
 
 export async function saveTransaction(tx: Transaction): Promise<void> {
@@ -160,11 +167,34 @@ export async function deleteTransactionsByParentId(parentId: string): Promise<vo
   await defaultAdapter.setItem(TRANSACTIONS_KEY, filtered);
 }
 
+/**
+ * Get transactions for a specific month
+ * Uses LOCAL date comparison (YYYY-MM prefix matching)
+ */
 export async function getTransactionsByMonth(month: string): Promise<Transaction[]> {
   const txs = Object.values(await listTransactionObjects());
   return txs
-    .filter(tx => tx.date.startsWith(month))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .filter(tx => {
+      // For card payments, use invoiceMonth if available
+      if (tx.isCardPayment && tx.invoiceMonth) {
+        return tx.invoiceMonth === month;
+      }
+      // For regular transactions, use the date month
+      return getMonthFromDate(tx.date) === month;
+    })
+    .sort((a, b) => {
+      const dateCompare = b.date.localeCompare(a.date);
+      if (dateCompare !== 0) return dateCompare;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+}
+
+/**
+ * Get transactions for cash balance (non-card transactions)
+ */
+export async function getCashTransactionsByMonth(month: string): Promise<Transaction[]> {
+  const txs = await getTransactionsByMonth(month);
+  return txs.filter(tx => !tx.isCardPayment);
 }
 
 /* =========================
@@ -181,6 +211,10 @@ export async function getCreditCardById(id: string): Promise<CreditCard | undefi
 
 export async function addCreditCard(card: CreditCard): Promise<void> {
   const cards = await getCreditCards();
+  // Default closing day to 25 if not specified
+  if (!card.closingDay) {
+    card.closingDay = 25;
+  }
   cards.push(card);
   await defaultAdapter.setItem(CARDS_KEY, cards);
 }
@@ -200,28 +234,54 @@ export async function deleteCreditCard(cardId: string): Promise<void> {
   await defaultAdapter.setItem(CARDS_KEY, updated);
 }
 
+/**
+ * Get all purchases for a card
+ */
 export async function getCardPurchases(cardId: string): Promise<Transaction[]> {
   const txs = Object.values(await listTransactionObjects());
   return txs
     .filter(tx => tx.isCardPayment && tx.cardId === cardId)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
+/**
+ * Get card purchases for a specific invoice month
+ */
+export async function getCardInvoicePurchases(cardId: string, invoiceMonth: string): Promise<Transaction[]> {
+  const card = await getCreditCardById(cardId);
+  if (!card) return [];
+  
+  const closingDay = card.closingDay || 25;
+  const txs = Object.values(await listTransactionObjects());
+  
+  return txs
+    .filter(tx => {
+      if (!tx.isCardPayment || tx.cardId !== cardId) return false;
+      
+      // Use invoiceMonth if already calculated, otherwise calculate it
+      const txInvoiceMonth = tx.invoiceMonth || getInvoiceMonth(tx.date, closingDay);
+      return txInvoiceMonth === invoiceMonth;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/**
+ * Get total for a card's invoice in a specific month
+ */
 export async function getCardMonthlyTotal(cardId: string, month: string): Promise<number> {
-  const purchases = await getCardPurchases(cardId);
-  return purchases
-    .filter(tx => tx.date.startsWith(month))
-    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+  const purchases = await getCardInvoicePurchases(cardId, month);
+  return purchases.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
 }
 
 /* =========================
  * ANALYTICS HELPERS
  * ========================= */
 export async function getMonthlyTotals(month: string): Promise<{ income: number; expense: number }> {
-  const txs = await getTransactionsByMonth(month);
+  // Get only cash transactions for balance calculation
+  const txs = await getCashTransactionsByMonth(month);
   const income = txs
     .filter(tx => tx.type === 'income')
-    .reduce((sum, tx) => sum + tx.amount, 0);
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
   const expense = txs
     .filter(tx => tx.type === 'expense')
     .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
@@ -268,12 +328,20 @@ export async function exportAllData(): Promise<string> {
   const cards = await getCreditCards();
   const settings = await getSettings();
   
+  // Also export investments if available
+  const investments = await defaultAdapter.getItem('investments', {});
+  const yieldHistory = await defaultAdapter.getItem('yield_history', []);
+  const defaultYieldRate = await defaultAdapter.getItem('default_yield_rate', 6.5);
+  
   const data = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     transactions,
     creditCards: cards,
     settings,
+    investments,
+    yieldHistory,
+    defaultYieldRate,
   };
   
   return JSON.stringify(data, null, 2);
@@ -291,6 +359,15 @@ export async function importAllData(jsonString: string): Promise<void> {
   if (data.settings) {
     await saveSettings(data.settings);
   }
+  if (data.investments) {
+    await defaultAdapter.setItem('investments', data.investments);
+  }
+  if (data.yieldHistory) {
+    await defaultAdapter.setItem('yield_history', data.yieldHistory);
+  }
+  if (data.defaultYieldRate !== undefined) {
+    await defaultAdapter.setItem('default_yield_rate', data.defaultYieldRate);
+  }
 }
 
 /* =========================
@@ -306,6 +383,7 @@ export default {
   deleteTransaction,
   deleteTransactionsByParentId,
   getTransactionsByMonth,
+  getCashTransactionsByMonth,
   getCategories,
   getCategoryById,
   getCreditCards,
@@ -314,6 +392,7 @@ export default {
   updateCreditCard,
   deleteCreditCard,
   getCardPurchases,
+  getCardInvoicePurchases,
   getCardMonthlyTotal,
   getMonthlyTotals,
   getCategoryTotals,

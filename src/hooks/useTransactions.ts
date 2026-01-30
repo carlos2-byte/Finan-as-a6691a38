@@ -9,8 +9,10 @@ import {
   deleteTransactionsByParentId,
   getMonthlyTotals,
   getCategoryTotals,
+  getCreditCardById,
 } from '@/lib/storage';
-import { generateId, getCurrentMonth, getNextMonth } from '@/lib/formatters';
+import { generateId, getCurrentMonth } from '@/lib/formatters';
+import { addMonthsToDate, getInvoiceMonth, getLocalDateString } from '@/lib/dateUtils';
 
 export function useTransactions(month?: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -48,35 +50,57 @@ export function useTransactions(month?: string) {
     ) => {
       const { installments = 1, ...txData } = tx;
 
+      // Get card closing day if it's a card payment
+      let closingDay = 25;
+      if (txData.isCardPayment && txData.cardId) {
+        const card = await getCreditCardById(txData.cardId);
+        if (card?.closingDay) {
+          closingDay = card.closingDay;
+        }
+      }
+
       if (installments > 1) {
-        // Create installment transactions
+        // Create installment transactions - each in a DIFFERENT month
         const parentId = generateId();
         const installmentTransactions: Transaction[] = [];
-        const baseDate = new Date(txData.date);
         const installmentAmount = txData.amount / installments;
 
         for (let i = 0; i < installments; i++) {
-          const installmentDate = new Date(baseDate);
-          installmentDate.setMonth(installmentDate.getMonth() + i);
+          // Each installment goes to the next month
+          const installmentDate = addMonthsToDate(txData.date, i);
+          
+          // Calculate invoice month for card payments
+          let invoiceMonth: string | undefined;
+          if (txData.isCardPayment) {
+            invoiceMonth = getInvoiceMonth(installmentDate, closingDay);
+          }
 
           installmentTransactions.push({
             ...txData,
             id: i === 0 ? parentId : generateId(),
             parentId: i === 0 ? undefined : parentId,
-            amount: txData.type === 'expense' ? -Math.abs(installmentAmount) : installmentAmount,
-            date: installmentDate.toISOString().split('T')[0],
+            amount: txData.type === 'expense' ? -Math.abs(installmentAmount) : Math.abs(installmentAmount),
+            date: installmentDate,
             installments,
             currentInstallment: i + 1,
             description: `${txData.description || ''} (${i + 1}/${installments})`.trim(),
+            invoiceMonth,
           });
         }
 
         await saveTransactions(installmentTransactions);
       } else {
+        // Calculate invoice month for single card payment
+        let invoiceMonth: string | undefined;
+        if (txData.isCardPayment) {
+          invoiceMonth = getInvoiceMonth(txData.date, closingDay);
+        }
+
         const newTx: Transaction = {
           ...txData,
           id: generateId(),
           amount: txData.type === 'expense' ? -Math.abs(txData.amount) : Math.abs(txData.amount),
+          invoiceMonth,
         };
         await saveTransaction(newTx);
       }

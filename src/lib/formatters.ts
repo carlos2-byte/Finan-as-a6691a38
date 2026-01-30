@@ -1,6 +1,17 @@
 /**
  * Formatting utilities for currency and dates
+ * Uses LOCAL dates only - no UTC/timezone conversion
  */
+
+import { 
+  getLocalMonth, 
+  getLocalDateString, 
+  formatDateShortBR, 
+  formatMonthYearBR,
+  getPreviousMonthLocal,
+  getNextMonthLocal,
+  getMonthsInRangeLocal
+} from './dateUtils';
 
 export function formatCurrency(
   amount: number,
@@ -17,63 +28,50 @@ export function formatCurrency(
 
 export function formatDate(
   dateString: string,
-  locale: string = 'pt-BR',
-  options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' }
+  _locale: string = 'pt-BR',
+  _options?: Intl.DateTimeFormatOptions
 ): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(locale, options);
+  return formatDateShortBR(dateString);
 }
 
 export function formatFullDate(
   dateString: string,
-  locale: string = 'pt-BR'
+  _locale: string = 'pt-BR'
 ): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(locale, {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
+  // Format as dd de month de yyyy
+  const [year, month, day] = dateString.split('-').map(Number);
+  const monthNames = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ];
+  return `${String(day).padStart(2, '0')} de ${monthNames[month - 1]} de ${year}`;
 }
 
 export function formatMonthYear(
   month: string,
-  locale: string = 'pt-BR'
+  _locale: string = 'pt-BR'
 ): string {
-  const date = new Date(`${month}-01`);
-  return date.toLocaleDateString(locale, {
-    month: 'long',
-    year: 'numeric',
-  });
+  return formatMonthYearBR(month);
 }
 
 export function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return getLocalMonth();
+}
+
+export function getCurrentDate(): string {
+  return getLocalDateString();
 }
 
 export function getPreviousMonth(month: string): string {
-  const date = new Date(`${month}-01`);
-  date.setMonth(date.getMonth() - 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  return getPreviousMonthLocal(month);
 }
 
 export function getNextMonth(month: string): string {
-  const date = new Date(`${month}-01`);
-  date.setMonth(date.getMonth() + 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  return getNextMonthLocal(month);
 }
 
 export function getMonthsInRange(startMonth: string, endMonth: string): string[] {
-  const months: string[] = [];
-  let current = startMonth;
-  
-  while (current <= endMonth) {
-    months.push(current);
-    current = getNextMonth(current);
-  }
-  
-  return months;
+  return getMonthsInRangeLocal(startMonth, endMonth);
 }
 
 export function generateId(): string {
