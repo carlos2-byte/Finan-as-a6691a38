@@ -3,6 +3,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { CreditCard } from '@/lib/storage';
 
 interface AddCardSheetProps {
@@ -15,12 +22,14 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
   const [name, setName] = useState('');
   const [last4, setLast4] = useState('');
   const [limit, setLimit] = useState('');
+  const [closingDay, setClosingDay] = useState('25');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
     setName('');
     setLast4('');
     setLimit('');
+    setClosingDay('25');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +42,7 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
         name: name.trim(),
         last4: last4.trim() || undefined,
         limit: limit ? parseFloat(limit.replace(',', '.')) : undefined,
+        closingDay: parseInt(closingDay),
       });
       resetForm();
       onOpenChange(false);
@@ -40,6 +50,9 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
       setIsSubmitting(false);
     }
   };
+
+  // Generate days 1-28 for closing day selection
+  const closingDays = Array.from({ length: 28 }, (_, i) => i + 1);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -90,6 +103,26 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
                 className="pl-10"
               />
             </div>
+          </div>
+
+          {/* Closing Day */}
+          <div className="space-y-2">
+            <Label>Dia de Fechamento da Fatura</Label>
+            <Select value={closingDay} onValueChange={setClosingDay}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {closingDays.map(day => (
+                  <SelectItem key={day} value={String(day)}>
+                    Dia {day}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Compras após este dia vão para a próxima fatura
+            </p>
           </div>
 
           {/* Submit */}

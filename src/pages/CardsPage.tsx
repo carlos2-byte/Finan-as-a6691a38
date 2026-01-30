@@ -3,8 +3,9 @@ import { Plus, CreditCard as CardIcon, Trash2 } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCreditCards, useCardDetails } from '@/hooks/useCreditCards';
-import { formatCurrency, getCurrentMonth } from '@/lib/formatters';
+import { formatCurrency, getCurrentMonth, formatMonthYear } from '@/lib/formatters';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { AddCardSheet } from '@/components/cards/AddCardSheet';
 import { CreditCard } from '@/lib/storage';
@@ -59,7 +60,7 @@ function CardItem({
           <div className="flex items-start justify-between">
             <CardIcon className="h-8 w-8 text-white/80" />
             <div className="text-right">
-              <p className="text-xs text-white/70">Fatura Atual</p>
+              <p className="text-xs text-white/70">Fatura {formatMonthYear(getCurrentMonth())}</p>
               <p className="text-lg font-bold text-white">
                 {formatCurrency(monthlyTotal)}
               </p>
@@ -72,11 +73,12 @@ function CardItem({
               <p className="text-white/80 font-mono text-sm">
                 •••• •••• •••• {card.last4 || '****'}
               </p>
-              {card.limit && (
-                <p className="text-xs text-white/70">
-                  Limite: {formatCurrency(availableLimit)} disponível
-                </p>
-              )}
+              <div className="text-right text-xs text-white/70">
+                {card.closingDay && <p>Fecha dia {card.closingDay}</p>}
+                {card.limit && (
+                  <p>Limite: {formatCurrency(availableLimit)} disponível</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -116,86 +118,88 @@ export default function CardsPage() {
         </div>
       }
     >
-      <div className="space-y-6">
-        {/* Cards List */}
-        {cards.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <CardIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">Nenhum cartão cadastrado</p>
-              <Button className="mt-4" onClick={() => setShowAddSheet(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                Adicionar Cartão
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {cards.map((card, index) => (
-              <CardItem
-                key={card.id}
-                card={card}
-                index={index}
-                isSelected={selectedCardId === card.id}
-                onClick={() =>
-                  setSelectedCardId(selectedCardId === card.id ? null : card.id)
-                }
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Selected Card Details */}
-        {selectedCard && (
-          <div className="space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                Detalhes - {selectedCard.name}
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setCardToDelete(selectedCard)}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Excluir
-              </Button>
-            </div>
-
-            {/* Card Stats */}
-            <div className="grid grid-cols-2 gap-3">
-              <Card>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground">Fatura Atual</p>
-                  <p className="text-xl font-bold">{formatCurrency(monthlyTotal)}</p>
-                </CardContent>
-              </Card>
-              {selectedCard.limit && (
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-xs text-muted-foreground">Disponível</p>
-                    <p className="text-xl font-bold text-success">
-                      {formatCurrency(availableLimit)}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Purchases */}
+      <ScrollArea className="h-[calc(100vh-140px)]">
+        <div className="space-y-6 pb-4">
+          {/* Cards List */}
+          {cards.length === 0 ? (
             <Card>
-              <CardContent className="pt-4">
-                <h3 className="font-medium mb-3">Compras Recentes</h3>
-                <TransactionList
-                  transactions={purchases.slice(0, 10)}
-                  emptyMessage="Nenhuma compra neste cartão"
-                />
+              <CardContent className="py-12 text-center">
+                <CardIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">Nenhum cartão cadastrado</p>
+                <Button className="mt-4" onClick={() => setShowAddSheet(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Adicionar Cartão
+                </Button>
               </CardContent>
             </Card>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="space-y-4">
+              {cards.map((card, index) => (
+                <CardItem
+                  key={card.id}
+                  card={card}
+                  index={index}
+                  isSelected={selectedCardId === card.id}
+                  onClick={() =>
+                    setSelectedCardId(selectedCardId === card.id ? null : card.id)
+                  }
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Selected Card Details */}
+          {selectedCard && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">
+                  Detalhes - {selectedCard.name}
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setCardToDelete(selectedCard)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Excluir
+                </Button>
+              </div>
+
+              {/* Card Stats */}
+              <div className="grid grid-cols-2 gap-3">
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">Fatura Atual</p>
+                    <p className="text-xl font-bold">{formatCurrency(monthlyTotal)}</p>
+                  </CardContent>
+                </Card>
+                {selectedCard.limit && (
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-xs text-muted-foreground">Disponível</p>
+                      <p className="text-xl font-bold text-success">
+                        {formatCurrency(availableLimit)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Purchases */}
+              <Card>
+                <CardContent className="pt-4">
+                  <h3 className="font-medium mb-3">Compras Recentes</h3>
+                  <TransactionList
+                    transactions={purchases.slice(0, 10)}
+                    emptyMessage="Nenhuma compra neste cartão"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
 
       {/* Add Card Sheet */}
       <AddCardSheet

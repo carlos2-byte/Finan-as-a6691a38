@@ -7,6 +7,7 @@ import { TransactionList } from '@/components/transactions/TransactionList';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCreditCards } from '@/hooks/useCreditCards';
 import { getCurrentMonth } from '@/lib/formatters';
@@ -72,17 +73,19 @@ export default function HomePage() {
         {/* Transactions */}
         <section>
           <h2 className="text-lg font-semibold mb-3">Transações</h2>
-          <TransactionList
-            transactions={filteredTransactions}
-            loading={loading}
-            onDelete={removeTransaction}
-            showDeleteButton
-            emptyMessage={
-              searchQuery
-                ? 'Nenhuma transação encontrada para esta busca'
-                : 'Nenhuma transação neste mês'
-            }
-          />
+          <ScrollArea className="h-[calc(100vh-420px)]">
+            <TransactionList
+              transactions={filteredTransactions}
+              loading={loading}
+              onDelete={removeTransaction}
+              showDeleteButton
+              emptyMessage={
+                searchQuery
+                  ? 'Nenhuma transação encontrada para esta busca'
+                  : 'Nenhuma transação neste mês'
+              }
+            />
+          </ScrollArea>
         </section>
       </div>
 

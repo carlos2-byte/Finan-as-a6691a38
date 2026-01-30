@@ -33,12 +33,15 @@ class LocalStorageAdapter implements StorageAdapter {
       localStorage.setItem(this.getKey(key), JSON.stringify(value));
     } catch (error) {
       console.error('Failed to save to localStorage:', error);
-      throw error;
     }
   }
 
   async removeItem(key: string): Promise<void> {
-    localStorage.removeItem(this.getKey(key));
+    try {
+      localStorage.removeItem(this.getKey(key));
+    } catch (error) {
+      console.error('Failed to remove from localStorage:', error);
+    }
   }
 
   async clear(): Promise<void> {
