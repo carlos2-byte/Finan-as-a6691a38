@@ -23,6 +23,7 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
   const [last4, setLast4] = useState('');
   const [limit, setLimit] = useState('');
   const [closingDay, setClosingDay] = useState('25');
+  const [dueDay, setDueDay] = useState('5'); // Novo estado para o Vencimento
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
@@ -30,6 +31,7 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
     setLast4('');
     setLimit('');
     setClosingDay('25');
+    setDueDay('5');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,6 +45,7 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
         last4: last4.trim() || undefined,
         limit: limit ? parseFloat(limit.replace(',', '.')) : undefined,
         closingDay: parseInt(closingDay),
+        dueDay: parseInt(dueDay), // Enviando o vencimento para o banco/storage
       });
       resetForm();
       onOpenChange(false);
@@ -51,8 +54,8 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
     }
   };
 
-  // Generate days 1-28 for closing day selection
-  const closingDays = Array.from({ length: 28 }, (_, i) => i + 1);
+  // Dias 1 a 28 para evitar problemas com Fevereiro
+  const days = Array.from({ length: 28 }, (_, i) => i + 1);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -61,77 +64,50 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
           <SheetTitle>Novo Cartão</SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Card Name */}
-          <div className="space-y-2">
-            <Label htmlFor="cardName">Nome do Cartão</Label>
-            <Input
-              id="cardName"
-              placeholder="Ex: Nubank, Itaú Visa"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto max-h-[80vh]">
+          {/* Nome e Limite omitidos aqui para brevidade, mantenha os seus */}
+          
+          <div className="grid grid-cols-2 gap-4">
+            {/* Closing Day (Fechamento) */}
+            <div className="space-y-2">
+              <Label>Fechamento</Label>
+              <Select value={closingDay} onValueChange={setClosingDay}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {days.map(day => (
+                    <SelectItem key={`close-${day}`} value={String(day)}>
+                      Dia {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Last 4 Digits */}
-          <div className="space-y-2">
-            <Label htmlFor="last4">Últimos 4 dígitos (opcional)</Label>
-            <Input
-              id="last4"
-              placeholder="1234"
-              maxLength={4}
-              value={last4}
-              onChange={e => setLast4(e.target.value.replace(/\D/g, ''))}
-            />
-          </div>
-
-          {/* Limit */}
-          <div className="space-y-2">
-            <Label htmlFor="limit">Limite (opcional)</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                R$
-              </span>
-              <Input
-                id="limit"
-                type="text"
-                inputMode="decimal"
-                placeholder="0,00"
-                value={limit}
-                onChange={e => setLimit(e.target.value)}
-                className="pl-10"
-              />
+            {/* Due Day (Vencimento) */}
+            <div className="space-y-2">
+              <Label>Vencimento</Label>
+              <Select value={dueDay} onValueChange={setDueDay}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {days.map(day => (
+                    <SelectItem key={`due-${day}`} value={String(day)}>
+                      Dia {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          {/* Closing Day */}
-          <div className="space-y-2">
-            <Label>Dia de Fechamento da Fatura</Label>
-            <Select value={closingDay} onValueChange={setClosingDay}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {closingDays.map(day => (
-                  <SelectItem key={day} value={String(day)}>
-                    Dia {day}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Compras após este dia vão para a próxima fatura
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground italic">
+            Dica: Se comprar no dia {closingDay}, a conta chega no dia {dueDay} do próximo mês.
+          </p>
 
-          {/* Submit */}
-          <Button
-            type="submit"
-            className="w-full"
-            size="lg"
-            disabled={isSubmitting || !name.trim()}
-          >
+          <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || !name.trim()}>
             {isSubmitting ? 'Salvando...' : 'Adicionar Cartão'}
           </Button>
         </form>
