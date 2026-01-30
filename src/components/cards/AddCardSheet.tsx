@@ -23,7 +23,7 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
   const [last4, setLast4] = useState('');
   const [limit, setLimit] = useState('');
   const [closingDay, setClosingDay] = useState('25');
-  const [dueDay, setDueDay] = useState('5'); // Novo estado para o Vencimento
+  const [dueDay, setDueDay] = useState('5');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
@@ -45,7 +45,7 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
         last4: last4.trim() || undefined,
         limit: limit ? parseFloat(limit.replace(',', '.')) : undefined,
         closingDay: parseInt(closingDay),
-        dueDay: parseInt(dueDay), // Enviando o vencimento para o banco/storage
+        dueDay: parseInt(dueDay),
       });
       resetForm();
       onOpenChange(false);
@@ -54,7 +54,6 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
     }
   };
 
-  // Dias 1 a 28 para evitar problemas com Fevereiro
   const days = Array.from({ length: 28 }, (_, i) => i + 1);
 
   return (
@@ -64,50 +63,34 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
           <SheetTitle>Novo Cartão</SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto max-h-[80vh]">
-          {/* Nome e Limite omitidos aqui para brevidade, mantenha os seus */}
-          
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="cardName">Nome do Cartão</Label>
+            <Input id="cardName" value={name} onChange={e => setName(e.target.value)} required />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
-            {/* Closing Day (Fechamento) */}
             <div className="space-y-2">
               <Label>Fechamento</Label>
               <Select value={closingDay} onValueChange={setClosingDay}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {days.map(day => (
-                    <SelectItem key={`close-${day}`} value={String(day)}>
-                      Dia {day}
-                    </SelectItem>
-                  ))}
+                  {days.map(d => <SelectItem key={d} value={String(d)}>Dia {d}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Due Day (Vencimento) */}
             <div className="space-y-2">
               <Label>Vencimento</Label>
               <Select value={dueDay} onValueChange={setDueDay}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {days.map(day => (
-                    <SelectItem key={`due-${day}`} value={String(day)}>
-                      Dia {day}
-                    </SelectItem>
-                  ))}
+                  {days.map(d => <SelectItem key={d} value={String(d)}>Dia {d}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground italic">
-            Dica: Se comprar no dia {closingDay}, a conta chega no dia {dueDay} do próximo mês.
-          </p>
-
-          <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || !name.trim()}>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? 'Salvando...' : 'Adicionar Cartão'}
           </Button>
         </form>
