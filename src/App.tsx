@@ -20,11 +20,18 @@ function AppContent() {
   const { isLocked, hasPassword, loading, refresh } = useAppLock();
   const [unlocked, setUnlocked] = useState(false);
 
+  // Always require unlock when app starts if password is set
   useEffect(() => {
-    if (!hasPassword || !isLocked) {
-      setUnlocked(true);
+    if (!loading) {
+      if (!hasPassword) {
+        // No password configured, allow access
+        setUnlocked(true);
+      } else {
+        // Password is configured - keep locked until user unlocks
+        setUnlocked(false);
+      }
     }
-  }, [hasPassword, isLocked]);
+  }, [hasPassword, loading]);
 
   if (loading) {
     return (
@@ -34,7 +41,8 @@ function AppContent() {
     );
   }
 
-  if (hasPassword && isLocked && !unlocked) {
+  // If password is set, always show lock screen until unlocked in this session
+  if (hasPassword && !unlocked) {
     return (
       <LockScreen 
         onUnlock={() => {
