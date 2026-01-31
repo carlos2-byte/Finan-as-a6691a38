@@ -5,8 +5,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface TransactionListProps {
   transactions: Transaction[];
   loading?: boolean;
-  onDelete?: (id: string) => void;
-  showDeleteButton?: boolean;
+  onDelete?: (transaction: Transaction) => void;
+  onEdit?: (transaction: Transaction) => void;
+  showActions?: boolean;
   emptyMessage?: string;
 }
 
@@ -14,7 +15,8 @@ export function TransactionList({
   transactions,
   loading = false,
   onDelete,
-  showDeleteButton = false,
+  onEdit,
+  showActions = false,
   emptyMessage = 'Nenhuma transação encontrada',
 }: TransactionListProps) {
   if (loading) {
@@ -49,7 +51,8 @@ export function TransactionList({
           key={tx.id}
           transaction={tx}
           onDelete={onDelete}
-          showDeleteButton={showDeleteButton}
+          onEdit={onEdit}
+          showActions={showActions}
         />
       ))}
     </div>

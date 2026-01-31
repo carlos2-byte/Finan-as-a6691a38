@@ -74,6 +74,33 @@ export function addMonthsToDate(dateString: string, months: number): string {
 }
 
 /**
+ * Add weeks to a date string, returning new YYYY-MM-DD
+ */
+export function addWeeksToDate(dateString: string, weeks: number): string {
+  const date = parseLocalDate(dateString);
+  date.setDate(date.getDate() + (weeks * 7));
+  return getLocalDateString(date);
+}
+
+/**
+ * Add years to a date string, returning new YYYY-MM-DD
+ */
+export function addYearsToDate(dateString: string, years: number): string {
+  const date = parseLocalDate(dateString);
+  date.setFullYear(date.getFullYear() + years);
+  return getLocalDateString(date);
+}
+
+/**
+ * Add days to a date string, returning new YYYY-MM-DD
+ */
+export function addDaysToDate(dateString: string, days: number): string {
+  const date = parseLocalDate(dateString);
+  date.setDate(date.getDate() + days);
+  return getLocalDateString(date);
+}
+
+/**
  * Format date as dd/MM/yyyy (Brazilian format)
  */
 export function formatDateBR(dateString: string): string {

@@ -5,18 +5,21 @@ import { BalanceCard } from '@/components/home/BalanceCard';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
+import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCreditCards } from '@/hooks/useCreditCards';
 import { getCurrentMonth } from '@/lib/formatters';
+import { Transaction } from '@/lib/storage';
 
 export default function HomePage() {
   const [month, setMonth] = useState(getCurrentMonth());
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
   const { transactions, loading, totals, balance, addTransaction, removeTransaction } = 
     useTransactions(month);
@@ -31,6 +34,15 @@ export default function HomePage() {
       tx.category?.toLowerCase().includes(query)
     );
   }, [transactions, searchQuery]);
+
+  const handleDelete = (transaction: Transaction) => {
+    setTransactionToDelete(transaction);
+  };
+
+  const handleConfirmDelete = (id: string, deleteType: 'single' | 'fromThis' | 'all') => {
+    removeTransaction(id, deleteType);
+    setTransactionToDelete(null);
+  };
 
   return (
     <PageContainer
@@ -77,8 +89,8 @@ export default function HomePage() {
             <TransactionList
               transactions={filteredTransactions}
               loading={loading}
-              onDelete={removeTransaction}
-              showDeleteButton
+              onDelete={handleDelete}
+              showActions
               emptyMessage={
                 searchQuery
                   ? 'Nenhuma transação encontrada para esta busca'
@@ -104,6 +116,14 @@ export default function HomePage() {
         onOpenChange={setShowAddSheet}
         onSubmit={addTransaction}
         cards={cards}
+      />
+
+      {/* Delete Transaction Dialog */}
+      <DeleteTransactionDialog
+        transaction={transactionToDelete}
+        open={!!transactionToDelete}
+        onOpenChange={(open) => !open && setTransactionToDelete(null)}
+        onDelete={handleConfirmDelete}
       />
     </PageContainer>
   );
