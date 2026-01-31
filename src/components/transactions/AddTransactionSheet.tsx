@@ -16,7 +16,7 @@ import { getCategories, CreditCard, Transaction } from '@/lib/storage';
 import { getLocalDateString, getInvoiceMonth, addMonthsToDate, addYearsToDate } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Repeat, Calendar, CreditCard as CardIcon } from 'lucide-react';
+import { Repeat, Calendar, CreditCard as CardIcon, Package } from 'lucide-react';
 
 interface AddTransactionSheetProps {
   open: boolean;
@@ -32,11 +32,18 @@ interface AddTransactionSheetProps {
     }
   ) => Promise<void>;
   cards: CreditCard[];
+  editingTransaction?: Transaction | null;
 }
 
 const categories = getCategories();
 
-export function AddTransactionSheet({ open, onOpenChange, onSubmit, cards }: AddTransactionSheetProps) {
+export function AddTransactionSheet({ 
+  open, 
+  onOpenChange, 
+  onSubmit, 
+  cards,
+  editingTransaction,
+}: AddTransactionSheetProps) {
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -51,23 +58,38 @@ export function AddTransactionSheet({ open, onOpenChange, onSubmit, cards }: Add
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset form when opened
+  // Reset form when opened or load editing transaction
   useEffect(() => {
     if (open) {
-      setType('expense');
-      setAmount('');
-      setDescription('');
-      setCategory('other');
-      setDate(getLocalDateString());
-      setIsCardPayment(false);
-      setCardId('');
-      setInstallments(1);
-      setIsInstallmentTotal(true);
-      setIsRecurring(false);
-      setRecurrenceType('monthly');
-      setRecurrenceEndDate('');
+      if (editingTransaction) {
+        setType(editingTransaction.type);
+        setAmount(Math.abs(editingTransaction.amount).toString());
+        setDescription(editingTransaction.description?.replace(/\s*\(\d+\/\d+\)$/, '') || '');
+        setCategory(editingTransaction.category || 'other');
+        setDate(editingTransaction.date);
+        setIsCardPayment(editingTransaction.isCardPayment || false);
+        setCardId(editingTransaction.cardId || '');
+        setInstallments(1); // Reset for editing
+        setIsInstallmentTotal(true);
+        setIsRecurring(false);
+        setRecurrenceType('monthly');
+        setRecurrenceEndDate('');
+      } else {
+        setType('expense');
+        setAmount('');
+        setDescription('');
+        setCategory('other');
+        setDate(getLocalDateString());
+        setIsCardPayment(false);
+        setCardId('');
+        setInstallments(1);
+        setIsInstallmentTotal(true);
+        setIsRecurring(false);
+        setRecurrenceType('monthly');
+        setRecurrenceEndDate('');
+      }
     }
-  }, [open]);
+  }, [open, editingTransaction]);
 
   // Calculate default end date for recurrence (1 year from now)
   useEffect(() => {
@@ -115,11 +137,14 @@ export function AddTransactionSheet({ open, onOpenChange, onSubmit, cards }: Add
   };
 
   const expenseCategories = categories.filter(c => c.type === 'expense');
+  const isEditing = !!editingTransaction;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl">
-        <SheetHeader><SheetTitle>Nova Transação</SheetTitle></SheetHeader>
+        <SheetHeader>
+          <SheetTitle>{isEditing ? 'Editar Transação' : 'Nova Transação'}</SheetTitle>
+        </SheetHeader>
         <ScrollArea className="h-full pr-4">
           <form onSubmit={handleSubmit} className="space-y-4 mt-4 pb-10">
             {/* Type Toggle */}
@@ -194,91 +219,78 @@ export function AddTransactionSheet({ open, onOpenChange, onSubmit, cards }: Add
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
 
-            {/* Recurring Toggle */}
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
-              <div className="flex items-center gap-2">
-                <Repeat className="h-4 w-4 text-muted-foreground" />
-                <Label>Transação Recorrente</Label>
-              </div>
-              <Switch 
-                checked={isRecurring} 
-                onCheckedChange={(checked) => {
-                  setIsRecurring(checked);
-                  if (checked) {
-                    setInstallments(1);
-                    setIsCardPayment(false);
-                  }
-                }} 
-              />
-            </div>
-
-            {/* Recurrence Options */}
-            {isRecurring && (
-              <div className="space-y-4 p-3 border rounded-lg bg-muted/10">
-                <div className="space-y-2">
-                  <Label>Repetir</Label>
-                  <Select value={recurrenceType} onValueChange={(v: 'weekly' | 'monthly' | 'yearly') => setRecurrenceType(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="weekly">Semanalmente</SelectItem>
-                      <SelectItem value="monthly">Mensalmente</SelectItem>
-                      <SelectItem value="yearly">Anualmente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Até quando?</Label>
-                  <Input 
-                    type="date" 
-                    value={recurrenceEndDate} 
-                    onChange={e => setRecurrenceEndDate(e.target.value)}
-                    min={date}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Card Payment (only for non-recurring expenses) */}
-            {type === 'expense' && !isRecurring && cards.length > 0 && (
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
-                <div className="flex items-center gap-2">
-                  <CardIcon className="h-4 w-4 text-muted-foreground" />
-                  <Label>Pagar com cartão?</Label>
-                </div>
-                <Switch checked={isCardPayment} onCheckedChange={setIsCardPayment} />
-              </div>
-            )}
-
-            {/* Card Options */}
-            {isCardPayment && !isRecurring && (
-              <div className="space-y-4 p-3 border rounded-lg bg-muted/10">
-                <Select value={cardId} onValueChange={setCardId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o cartão" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cards.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <div className="space-y-2">
-                  <Label>Parcelas</Label>
-                  <Input 
-                    type="number" 
-                    min="1"
-                    max="999"
-                    value={installments} 
-                    onChange={e => setInstallments(parseInt(e.target.value) || 1)} 
+            {/* Only show recurrence and installment options when NOT editing */}
+            {!isEditing && (
+              <>
+                {/* Recurring Toggle */}
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+                  <div className="flex items-center gap-2">
+                    <Repeat className="h-4 w-4 text-muted-foreground" />
+                    <Label>Transação Recorrente</Label>
+                  </div>
+                  <Switch 
+                    checked={isRecurring} 
+                    onCheckedChange={(checked) => {
+                      setIsRecurring(checked);
+                      if (checked) {
+                        setInstallments(1);
+                      }
+                    }} 
                   />
                 </div>
 
-                {/* Ask if amount is per installment or total */}
-                {installments > 1 && (
-                  <div className="space-y-2">
+                {/* Recurrence Options */}
+                {isRecurring && (
+                  <div className="space-y-4 p-3 border rounded-lg bg-muted/10">
+                    <div className="space-y-2">
+                      <Label>Repetir</Label>
+                      <Select value={recurrenceType} onValueChange={(v: 'weekly' | 'monthly' | 'yearly') => setRecurrenceType(v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="weekly">Semanalmente</SelectItem>
+                          <SelectItem value="monthly">Mensalmente</SelectItem>
+                          <SelectItem value="yearly">Anualmente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Até quando?</Label>
+                      <Input 
+                        type="date" 
+                        value={recurrenceEndDate} 
+                        onChange={e => setRecurrenceEndDate(e.target.value)}
+                        min={date}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Installments (available for ALL transactions, not just cards) */}
+                {!isRecurring && (
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <Label>Parcelado</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="number" 
+                        min="1"
+                        max="999"
+                        value={installments} 
+                        onChange={e => setInstallments(parseInt(e.target.value) || 1)}
+                        className="w-16 text-center"
+                      />
+                      <span className="text-sm text-muted-foreground">x</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ask if amount is per installment or total - ALWAYS when installments > 1 */}
+                {!isRecurring && installments > 1 && (
+                  <div className="space-y-2 p-3 border rounded-lg bg-muted/10">
                     <Label>O valor informado é:</Label>
                     <RadioGroup 
                       value={isInstallmentTotal ? 'total' : 'installment'} 
@@ -299,12 +311,39 @@ export function AddTransactionSheet({ open, onOpenChange, onSubmit, cards }: Add
                     </RadioGroup>
                   </div>
                 )}
-              </div>
+
+                {/* Card Payment (only for expenses and not recurring) */}
+                {type === 'expense' && cards.length > 0 && (
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+                    <div className="flex items-center gap-2">
+                      <CardIcon className="h-4 w-4 text-muted-foreground" />
+                      <Label>Pagar com cartão?</Label>
+                    </div>
+                    <Switch checked={isCardPayment} onCheckedChange={setIsCardPayment} />
+                  </div>
+                )}
+
+                {/* Card Selection */}
+                {isCardPayment && type === 'expense' && (
+                  <div className="space-y-4 p-3 border rounded-lg bg-muted/10">
+                    <Select value={cardId} onValueChange={setCardId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o cartão" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cards.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Submit Button */}
             <Button type="submit" className="w-full h-12" disabled={isSubmitting}>
-              {isSubmitting ? 'Salvando...' : 'Salvar'}
+              {isSubmitting ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Salvar'}
             </Button>
           </form>
         </ScrollArea>
