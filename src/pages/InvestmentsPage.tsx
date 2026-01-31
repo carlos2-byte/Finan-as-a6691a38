@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, TrendingUp, Trash2, ArrowDownToLine, ArrowUpFromLine, Percent } from 'lucide-react';
+import { Plus, TrendingUp, Trash2, ArrowDownToLine, ArrowUpFromLine, Percent, Info } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,11 +22,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useInvestments } from '@/hooks/useInvestments';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { useInvestments, useInvestmentDetails } from '@/hooks/useInvestments';
 import { useTransactions } from '@/hooks/useTransactions';
 import { formatCurrency, getCurrentMonth } from '@/lib/formatters';
 import { formatDateBR } from '@/lib/dateUtils';
-import { Investment } from '@/lib/investments';
+import { Investment, getDailyYieldEstimate, getMonthlyYieldEstimate } from '@/lib/investments';
 import { toast } from '@/hooks/use-toast';
 
 export default function InvestmentsPage() {
@@ -47,11 +53,13 @@ export default function InvestmentsPage() {
   const [showRateSheet, setShowRateSheet] = useState(false);
   const [showWithdrawSheet, setShowWithdrawSheet] = useState(false);
   const [showDepositSheet, setShowDepositSheet] = useState(false);
+  const [showHistorySheet, setShowHistorySheet] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
   const [investmentToDelete, setInvestmentToDelete] = useState<Investment | null>(null);
 
   // Form states
   const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newRate, setNewRate] = useState('');
   const [actionAmount, setActionAmount] = useState('');
@@ -65,9 +73,10 @@ export default function InvestmentsPage() {
     setIsSubmitting(true);
     try {
       const rate = newRate ? parseFloat(newRate.replace(',', '.')) : undefined;
-      await create(newName.trim(), amount, rate);
+      await create(newName.trim(), amount, rate, undefined, newType.trim() || undefined);
       toast({ title: 'Investimento criado!' });
       setNewName('');
+      setNewType('');
       setNewAmount('');
       setNewRate('');
       setShowAddSheet(false);
@@ -111,10 +120,10 @@ export default function InvestmentsPage() {
     try {
       const result = await withdraw(selectedInvestment.id, amount);
       if (result?.success) {
-        // Create income transaction with exact description
+        // Create income transaction
         await addTransaction({
           amount: result.amount,
-          description: 'Investment withdrawal',
+          description: `Resgate: ${result.investmentName}`,
           type: 'income',
           date: new Date().toISOString().split('T')[0],
           category: 'income',
@@ -147,6 +156,15 @@ export default function InvestmentsPage() {
     setInvestmentToDelete(null);
   };
 
+  // Calculate totals for display
+  const totalDailyYield = investments
+    .filter(i => i.isActive)
+    .reduce((sum, inv) => sum + getDailyYieldEstimate(inv.currentAmount, inv.yieldRate).net, 0);
+
+  const totalMonthlyYield = investments
+    .filter(i => i.isActive)
+    .reduce((sum, inv) => sum + getMonthlyYieldEstimate(inv.currentAmount, inv.yieldRate).net, 0);
+
   return (
     <PageContainer
       header={
@@ -178,8 +196,22 @@ export default function InvestmentsPage() {
                   </p>
                 </div>
               </div>
+              <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
+                <div>
+                  <p className="text-xs text-muted-foreground">Rendimento Diário</p>
+                  <p className="font-semibold text-success tabular-nums">
+                    +{formatCurrency(totalDailyYield)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Rendimento Mensal (est.)</p>
+                  <p className="font-semibold text-success tabular-nums">
+                    +{formatCurrency(totalMonthlyYield)}
+                  </p>
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Taxa padrão: {defaultRate}% ao ano
+                Taxa padrão: {defaultRate}% a.a. • Imposto: 20% sobre rendimentos
               </p>
             </CardContent>
           </Card>
@@ -198,43 +230,87 @@ export default function InvestmentsPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {investments.map(inv => (
-                <Card key={inv.id}>
-                  <CardContent className="pt-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="font-semibold">{inv.name}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          Início: {formatDateBR(inv.startDate)} • {inv.yieldRate}% a.a.
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive h-8 w-8"
-                        onClick={() => setInvestmentToDelete(inv)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Saldo atual</p>
-                        <p className="text-xl font-bold tabular-nums">
-                          {formatCurrency(inv.currentAmount)}
-                        </p>
-                        {inv.currentAmount !== inv.initialAmount && (
-                          <p className="text-xs text-success">
-                            +{formatCurrency(inv.currentAmount - inv.initialAmount)} rendimento
+              {investments.map(inv => {
+                const dailyYield = getDailyYieldEstimate(inv.currentAmount, inv.yieldRate);
+                const monthlyYield = getMonthlyYieldEstimate(inv.currentAmount, inv.yieldRate);
+                const totalYield = inv.currentAmount - inv.initialAmount;
+                
+                return (
+                  <Card key={inv.id}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">{inv.name}</h3>
+                            {inv.type && (
+                              <span className="text-xs bg-secondary px-2 py-0.5 rounded">
+                                {inv.type}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Início: {formatDateBR(inv.startDate)} • {inv.yieldRate}% a.a.
                           </p>
-                        )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive h-8 w-8"
+                          onClick={() => setInvestmentToDelete(inv)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="flex items-end justify-between mb-3">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Saldo atual</p>
+                          <p className="text-xl font-bold tabular-nums">
+                            {formatCurrency(inv.currentAmount)}
+                          </p>
+                          {totalYield > 0 && (
+                            <p className="text-xs text-success">
+                              +{formatCurrency(totalYield)} rendimento líquido
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Yield Estimates */}
+                      <div className="grid grid-cols-2 gap-2 mb-3 p-2 bg-muted/30 rounded-lg">
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <p className="text-xs text-muted-foreground">Rend. diário</p>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Info className="h-3 w-3 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Bruto: {formatCurrency(dailyYield.gross)}</p>
+                                  <p>Imposto (20%): -{formatCurrency(dailyYield.gross - dailyYield.net)}</p>
+                                  <p className="font-bold">Líquido: {formatCurrency(dailyYield.net)}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <p className="text-sm font-medium text-success tabular-nums">
+                            +{formatCurrency(dailyYield.net)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Rend. mensal (est.)</p>
+                          <p className="text-sm font-medium text-success tabular-nums">
+                            +{formatCurrency(monthlyYield.net)}
+                          </p>
+                        </div>
                       </div>
                       
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
+                          className="flex-1"
                           onClick={() => {
                             setSelectedInvestment(inv);
                             setShowDepositSheet(true);
@@ -246,6 +322,7 @@ export default function InvestmentsPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="flex-1"
                           onClick={() => {
                             setSelectedInvestment(inv);
                             setShowWithdrawSheet(true);
@@ -255,10 +332,10 @@ export default function InvestmentsPage() {
                           Resgatar
                         </Button>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -276,8 +353,16 @@ export default function InvestmentsPage() {
               <Input
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                placeholder="Ex: Tesouro Selic, CDB"
+                placeholder="Ex: Tesouro Selic, CDB Banco X"
                 required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo (opcional)</Label>
+              <Input
+                value={newType}
+                onChange={e => setNewType(e.target.value)}
+                placeholder="Ex: Renda Fixa, Tesouro, CDB, Fundos"
               />
             </div>
             <div className="space-y-2">
@@ -306,6 +391,10 @@ export default function InvestmentsPage() {
                 onChange={e => setNewRate(e.target.value)}
                 placeholder={`Padrão: ${defaultRate}%`}
               />
+              <p className="text-xs text-muted-foreground">
+                O rendimento é calculado diariamente e creditado no dia seguinte.
+                20% de imposto é deduzido automaticamente.
+              </p>
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Criando...' : 'Criar Investimento'}
@@ -331,7 +420,8 @@ export default function InvestmentsPage() {
                 placeholder={`Atual: ${defaultRate}%`}
               />
               <p className="text-xs text-muted-foreground">
-                Novos investimentos usarão esta taxa por padrão
+                Novos investimentos usarão esta taxa por padrão.
+                Rendimento diário = (taxa anual / 365) × saldo
               </p>
             </div>
             <Button type="submit" className="w-full">
@@ -399,7 +489,7 @@ export default function InvestmentsPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                O valor resgatado será adicionado como receita com descrição "Investment withdrawal"
+                O valor resgatado será adicionado como receita
               </p>
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>

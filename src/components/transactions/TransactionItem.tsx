@@ -12,6 +12,8 @@ import {
   MoreHorizontal,
   CreditCard,
   Trash2,
+  Repeat,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -28,18 +30,22 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 interface TransactionItemProps {
   transaction: Transaction;
-  onDelete?: (id: string) => void;
-  showDeleteButton?: boolean;
+  onDelete?: (transaction: Transaction) => void;
+  onEdit?: (transaction: Transaction) => void;
+  showActions?: boolean;
 }
 
 export function TransactionItem({ 
   transaction, 
   onDelete,
-  showDeleteButton = false,
+  onEdit,
+  showActions = false,
 }: TransactionItemProps) {
   const category = getCategoryById(transaction.category || 'other');
   const Icon = category?.icon ? iconMap[category.icon] || MoreHorizontal : MoreHorizontal;
   const isIncome = transaction.type === 'income';
+  const isRecurring = !!transaction.recurrenceId;
+  const isInstallment = transaction.installments && transaction.installments > 1;
 
   return (
     <div className="flex items-center gap-3 py-3 group">
@@ -61,12 +67,20 @@ export function TransactionItem({
           {transaction.isCardPayment && (
             <CreditCard className="h-3 w-3 text-muted-foreground shrink-0" />
           )}
+          {isRecurring && (
+            <Repeat className="h-3 w-3 text-primary shrink-0" />
+          )}
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{formatDate(transaction.date)}</span>
-          {transaction.installments && transaction.installments > 1 && (
+          {isInstallment && (
             <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]">
               {transaction.currentInstallment}/{transaction.installments}
+            </span>
+          )}
+          {isRecurring && (
+            <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px]">
+              recorrente
             </span>
           )}
         </div>
@@ -82,15 +96,29 @@ export function TransactionItem({
           {isIncome ? '+' : ''}{formatCurrency(transaction.amount)}
         </span>
         
-        {showDeleteButton && onDelete && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => onDelete(transaction.id)}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+        {showActions && (
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onEdit(transaction)}
+              >
+                <Pencil className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => onDelete(transaction)}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>

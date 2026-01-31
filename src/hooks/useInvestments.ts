@@ -9,11 +9,12 @@ import {
   getTotalInvested,
   getDefaultYieldRate,
   setDefaultYieldRate,
-  processMonthlyYields,
+  processDailyYields,
   getYieldHistory,
   YieldHistory,
+  getDailyYieldEstimate,
+  getMonthlyYieldEstimate,
 } from '@/lib/investments';
-import { getLocalMonth } from '@/lib/dateUtils';
 
 export function useInvestments() {
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -24,6 +25,9 @@ export function useInvestments() {
   const loadInvestments = useCallback(async () => {
     setLoading(true);
     try {
+      // Process any pending daily yields first
+      await processDailyYields();
+      
       const [invests, total, rate] = await Promise.all([
         getInvestments(),
         getTotalInvested(),
@@ -32,9 +36,6 @@ export function useInvestments() {
       setInvestments(invests);
       setTotalInvested(total);
       setDefaultRate(rate);
-
-      // Process yields for current month
-      await processMonthlyYields(getLocalMonth());
     } finally {
       setLoading(false);
     }
@@ -48,9 +49,10 @@ export function useInvestments() {
     name: string,
     amount: number,
     yieldRate?: number,
-    startDate?: string
+    startDate?: string,
+    type?: string
   ) => {
-    const investment = await createInvestment(name, amount, yieldRate, startDate);
+    const investment = await createInvestment(name, amount, yieldRate, startDate, type);
     await loadInvestments();
     return investment;
   }, [loadInvestments]);
@@ -87,6 +89,8 @@ export function useInvestments() {
     withdraw,
     updateDefaultRate,
     refresh: loadInvestments,
+    getDailyYieldEstimate,
+    getMonthlyYieldEstimate,
   };
 }
 
