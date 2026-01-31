@@ -6,6 +6,7 @@ import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog';
+import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,8 +21,11 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [pendingEditType, setPendingEditType] = useState<'single' | 'fromThis' | 'all'>('single');
 
-  const { transactions, loading, totals, balance, addTransaction, removeTransaction } = 
+  const { transactions, loading, totals, balance, addTransaction, updateTransaction, removeTransaction } = 
     useTransactions(month);
   const { cards } = useCreditCards();
 
@@ -42,6 +46,68 @@ export default function HomePage() {
   const handleConfirmDelete = (id: string, deleteType: 'single' | 'fromThis' | 'all') => {
     removeTransaction(id, deleteType);
     setTransactionToDelete(null);
+  };
+
+  const handleEdit = (transaction: Transaction) => {
+    setTransactionToEdit(transaction);
+    
+    // Check if it's a recurring or installment transaction
+    const hasMultiple = 
+      (transaction.installments && transaction.installments > 1) || 
+      transaction.parentId ||
+      transaction.recurrenceId;
+    
+    if (hasMultiple) {
+      // Show dialog asking which ones to edit
+      setEditDialogOpen(true);
+    } else {
+      // Single transaction, edit directly
+      setShowAddSheet(true);
+    }
+  };
+
+  const handleEditConfirm = (editType: 'single' | 'fromThis' | 'all') => {
+    setPendingEditType(editType);
+    setEditDialogOpen(false);
+    setShowAddSheet(true);
+  };
+
+  const handleSubmitEdit = async (
+    tx: Omit<Transaction, 'id' | 'createdAt'>,
+    options?: {
+      installments?: number;
+      isInstallmentTotal?: boolean;
+      isRecurring?: boolean;
+      recurrenceType?: 'weekly' | 'monthly' | 'yearly';
+      recurrenceEndDate?: string;
+    }
+  ) => {
+    if (transactionToEdit) {
+      // Update the transaction(s)
+      await updateTransaction(transactionToEdit.id, {
+        amount: tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
+        description: tx.description,
+        category: tx.category,
+        type: tx.type,
+        date: tx.date,
+        isCardPayment: tx.isCardPayment,
+        cardId: tx.cardId,
+      }, pendingEditType);
+      
+      setTransactionToEdit(null);
+      setPendingEditType('single');
+    } else {
+      // New transaction
+      await addTransaction(tx, options);
+    }
+  };
+
+  const handleSheetClose = (open: boolean) => {
+    setShowAddSheet(open);
+    if (!open) {
+      setTransactionToEdit(null);
+      setPendingEditType('single');
+    }
   };
 
   return (
@@ -90,6 +156,7 @@ export default function HomePage() {
               transactions={filteredTransactions}
               loading={loading}
               onDelete={handleDelete}
+              onEdit={handleEdit}
               showActions
               emptyMessage={
                 searchQuery
@@ -105,17 +172,29 @@ export default function HomePage() {
       <Button
         size="lg"
         className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-40"
-        onClick={() => setShowAddSheet(true)}
+        onClick={() => {
+          setTransactionToEdit(null);
+          setShowAddSheet(true);
+        }}
       >
         <Plus className="h-6 w-6" />
       </Button>
 
-      {/* Add Transaction Sheet */}
+      {/* Add/Edit Transaction Sheet */}
       <AddTransactionSheet
         open={showAddSheet}
-        onOpenChange={setShowAddSheet}
-        onSubmit={addTransaction}
+        onOpenChange={handleSheetClose}
+        onSubmit={handleSubmitEdit}
         cards={cards}
+        editingTransaction={transactionToEdit}
+      />
+
+      {/* Edit Transaction Dialog (for recurring/installments) */}
+      <EditTransactionDialog
+        transaction={transactionToEdit}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onConfirm={handleEditConfirm}
       />
 
       {/* Delete Transaction Dialog */}
