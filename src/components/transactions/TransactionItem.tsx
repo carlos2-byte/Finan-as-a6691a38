@@ -38,6 +38,23 @@ interface TransactionItemProps {
   showActions?: boolean;
 }
 
+/**
+ * Get display date for a transaction
+ * - Credit card transactions: use the calculated due date (vencimento)
+ * - Other transactions: use the purchase date
+ * 
+ * Due date logic: If dueDay < closingDay, due date is in the NEXT month
+ */
+function getDisplayDate(
+  transaction: Transaction,
+  card: { closingDay?: number; dueDay?: number } | null
+): string {
+  if (transaction.isCardPayment && transaction.invoiceMonth && card?.closingDay && card?.dueDay) {
+    return getInvoiceDueDate(transaction.invoiceMonth, card.closingDay, card.dueDay);
+  }
+  return transaction.date;
+}
+
 export function TransactionItem({ 
   transaction, 
   onDelete,
@@ -56,17 +73,19 @@ export function TransactionItem({
 
   // Calculate display date (due date for card payments)
   useEffect(() => {
-    async function calculateDisplayDate() {
-      if (isCardPayment && transaction.cardId && transaction.invoiceMonth) {
+    async function calculateDate() {
+      if (isCardPayment && transaction.cardId) {
         const card = await getCreditCardById(transaction.cardId);
-        if (card?.closingDay && card?.dueDay) {
-          const dueDate = getInvoiceDueDate(transaction.invoiceMonth, card.closingDay, card.dueDay);
-          setDisplayDate(dueDate);
+        if (card) {
+          setDisplayDate(getDisplayDate(transaction, card));
           setCardName(card.name);
         }
+      } else {
+        setDisplayDate(transaction.date);
+        setCardName(null);
       }
     }
-    calculateDisplayDate();
+    calculateDate();
   }, [transaction, isCardPayment]);
 
   return (

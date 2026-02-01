@@ -51,7 +51,7 @@ export function AddTransactionSheet({
   const [date, setDate] = useState(getLocalDateString());
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'debit' | 'credit'>('cash');
   const [cardId, setCardId] = useState('');
-  const [installments, setInstallments] = useState<number | ''>('');
+  const [installments, setInstallments] = useState<number | undefined>(undefined);
   const [isInstallmentTotal, setIsInstallmentTotal] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
@@ -69,7 +69,7 @@ export function AddTransactionSheet({
         setDate(editingTransaction.date);
         setPaymentMethod(editingTransaction.isCardPayment ? 'credit' : 'cash');
         setCardId(editingTransaction.cardId || '');
-        setInstallments('');
+        setInstallments(undefined);
         setIsInstallmentTotal(true);
         setIsRecurring(false);
         setRecurrenceType('monthly');
@@ -82,7 +82,7 @@ export function AddTransactionSheet({
         setDate(getLocalDateString());
         setPaymentMethod('cash');
         setCardId('');
-        setInstallments('');
+        setInstallments(undefined);
         setIsInstallmentTotal(true);
         setIsRecurring(false);
         setRecurrenceType('monthly');
@@ -111,7 +111,7 @@ export function AddTransactionSheet({
     }
 
     // Treat empty or invalid installments as 1
-    const actualInstallments = typeof installments === 'number' && installments > 0 ? installments : 1;
+    const actualInstallments = installments !== undefined && installments > 0 ? installments : 1;
 
     setIsSubmitting(true);
     try {
@@ -237,7 +237,7 @@ export function AddTransactionSheet({
                     onCheckedChange={(checked) => {
                       setIsRecurring(checked);
                       if (checked) {
-                        setInstallments(1);
+                        setInstallments(undefined);
                       }
                     }} 
                   />
@@ -284,11 +284,11 @@ export function AddTransactionSheet({
                         min="1"
                         max="999"
                         placeholder="1"
-                        value={installments === '' ? '' : installments} 
+                        value={installments || ''} 
                         onChange={e => {
                           const val = e.target.value;
                           if (val === '') {
-                            setInstallments('');
+                            setInstallments(undefined);
                           } else {
                             const num = parseInt(val);
                             if (!isNaN(num) && num >= 1) {
@@ -304,7 +304,7 @@ export function AddTransactionSheet({
                 )}
 
                 {/* Ask if amount is per installment or total - ALWAYS when installments > 1 */}
-                {!isRecurring && typeof installments === 'number' && installments > 1 && (
+                {!isRecurring && installments !== undefined && installments > 1 && (
                   <div className="space-y-2 p-3 border rounded-lg bg-muted/10">
                     <Label>O valor informado é:</Label>
                     <RadioGroup 
@@ -338,7 +338,7 @@ export function AddTransactionSheet({
                         className="flex flex-col h-auto py-3 gap-1"
                         onClick={() => {
                           setPaymentMethod('cash');
-                          setInstallments('');
+                          setInstallments(undefined);
                         }}
                       >
                         <Banknote className="h-5 w-5" />
@@ -350,7 +350,7 @@ export function AddTransactionSheet({
                         className="flex flex-col h-auto py-3 gap-1"
                         onClick={() => {
                           setPaymentMethod('debit');
-                          setInstallments('');
+                          setInstallments(undefined);
                         }}
                       >
                         <Wallet className="h-5 w-5" />
