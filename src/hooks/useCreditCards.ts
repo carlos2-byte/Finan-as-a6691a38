@@ -69,21 +69,29 @@ export function useCreditCards() {
   };
 }
 
-export function useCardDetails(cardId: string) {
+export function useCardDetails(cardId: string, month?: string) {
   const [card, setCard] = useState<CreditCard | null>(null);
   const [purchases, setPurchases] = useState<Transaction[]>([]);
   const [monthlyTotal, setMonthlyTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const targetMonth = month || getCurrentMonth();
+
   const loadDetails = useCallback(async () => {
-    if (!cardId) return;
+    if (!cardId) {
+      setCard(null);
+      setPurchases([]);
+      setMonthlyTotal(0);
+      setLoading(false);
+      return;
+    }
     
     setLoading(true);
     try {
       const [loadedCard, loadedPurchases, total] = await Promise.all([
         getCreditCardById(cardId),
-        getCardPurchases(cardId),
-        getCardMonthlyTotal(cardId, getCurrentMonth()),
+        getCardPurchases(cardId, targetMonth),
+        getCardMonthlyTotal(cardId, targetMonth),
       ]);
       
       setCard(loadedCard || null);
@@ -92,7 +100,7 @@ export function useCardDetails(cardId: string) {
     } finally {
       setLoading(false);
     }
-  }, [cardId]);
+  }, [cardId, targetMonth]);
 
   useEffect(() => {
     loadDetails();

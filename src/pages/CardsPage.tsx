@@ -107,7 +107,8 @@ export default function CardsPage() {
   const [pendingEditType, setPendingEditType] = useState<'single' | 'fromThis' | 'all'>('single');
 
   const selectedCard = cards.find(c => c.id === selectedCardId);
-  const { purchases, monthlyTotal, availableLimit, refresh: refreshCard } = useCardDetails(selectedCardId || '');
+  const currentMonth = getCurrentMonth();
+  const { purchases, monthlyTotal, availableLimit, refresh: refreshCard } = useCardDetails(selectedCardId || '', currentMonth);
   
   // Calculate due date for display
   const dueDate = selectedCard?.closingDay && selectedCard?.dueDay 
