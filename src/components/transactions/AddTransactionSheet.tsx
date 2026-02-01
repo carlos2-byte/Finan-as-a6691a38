@@ -51,7 +51,7 @@ export function AddTransactionSheet({
   const [date, setDate] = useState(getLocalDateString());
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'debit' | 'credit'>('cash');
   const [cardId, setCardId] = useState('');
-  const [installments, setInstallments] = useState(1);
+  const [installments, setInstallments] = useState<number | ''>('');
   const [isInstallmentTotal, setIsInstallmentTotal] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
@@ -69,7 +69,7 @@ export function AddTransactionSheet({
         setDate(editingTransaction.date);
         setPaymentMethod(editingTransaction.isCardPayment ? 'credit' : 'cash');
         setCardId(editingTransaction.cardId || '');
-        setInstallments(1);
+        setInstallments('');
         setIsInstallmentTotal(true);
         setIsRecurring(false);
         setRecurrenceType('monthly');
@@ -82,7 +82,7 @@ export function AddTransactionSheet({
         setDate(getLocalDateString());
         setPaymentMethod('cash');
         setCardId('');
-        setInstallments(1);
+        setInstallments('');
         setIsInstallmentTotal(true);
         setIsRecurring(false);
         setRecurrenceType('monthly');
@@ -110,6 +110,9 @@ export function AddTransactionSheet({
       invoiceMonth = getInvoiceMonth(date, card?.closingDay || 25);
     }
 
+    // Treat empty or invalid installments as 1
+    const actualInstallments = typeof installments === 'number' && installments > 0 ? installments : 1;
+
     setIsSubmitting(true);
     try {
       await onSubmit(
@@ -124,8 +127,8 @@ export function AddTransactionSheet({
           invoiceMonth,
         },
         {
-          installments: installments > 1 ? installments : undefined,
-          isInstallmentTotal: installments > 1 ? isInstallmentTotal : undefined,
+          installments: actualInstallments > 1 ? actualInstallments : undefined,
+          isInstallmentTotal: actualInstallments > 1 ? isInstallmentTotal : undefined,
           isRecurring,
           recurrenceType: isRecurring ? recurrenceType : undefined,
           recurrenceEndDate: isRecurring ? recurrenceEndDate : undefined,
@@ -280,8 +283,19 @@ export function AddTransactionSheet({
                         type="number" 
                         min="1"
                         max="999"
-                        value={installments} 
-                        onChange={e => setInstallments(parseInt(e.target.value) || 1)}
+                        placeholder="1"
+                        value={installments === '' ? '' : installments} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            setInstallments('');
+                          } else {
+                            const num = parseInt(val);
+                            if (!isNaN(num) && num >= 1) {
+                              setInstallments(num);
+                            }
+                          }
+                        }}
                         className="w-16 text-center"
                       />
                       <span className="text-sm text-muted-foreground">x</span>
@@ -290,7 +304,7 @@ export function AddTransactionSheet({
                 )}
 
                 {/* Ask if amount is per installment or total - ALWAYS when installments > 1 */}
-                {!isRecurring && installments > 1 && (
+                {!isRecurring && typeof installments === 'number' && installments > 1 && (
                   <div className="space-y-2 p-3 border rounded-lg bg-muted/10">
                     <Label>O valor informado é:</Label>
                     <RadioGroup 
@@ -324,7 +338,7 @@ export function AddTransactionSheet({
                         className="flex flex-col h-auto py-3 gap-1"
                         onClick={() => {
                           setPaymentMethod('cash');
-                          setInstallments(1);
+                          setInstallments('');
                         }}
                       >
                         <Banknote className="h-5 w-5" />
@@ -336,7 +350,7 @@ export function AddTransactionSheet({
                         className="flex flex-col h-auto py-3 gap-1"
                         onClick={() => {
                           setPaymentMethod('debit');
-                          setInstallments(1);
+                          setInstallments('');
                         }}
                       >
                         <Wallet className="h-5 w-5" />

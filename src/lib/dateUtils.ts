@@ -177,6 +177,30 @@ export function getInvoiceMonth(expenseDate: string, closingDay: number): string
 }
 
 /**
+ * Calculate the due date for an invoice based on closing day and due day
+ * 
+ * Rules:
+ * - If due day > closing day: due date is in the SAME month as invoice month
+ * - If due day <= closing day: due date is in the NEXT month after invoice month
+ * 
+ * Example: Closing day 30, Due day 6 -> closes Jan 30, due Feb 6
+ */
+export function getInvoiceDueDate(invoiceMonth: string, closingDay: number, dueDay: number): string {
+  const invoiceDate = parseLocalMonth(invoiceMonth);
+  
+  if (dueDay > closingDay) {
+    // Due day is after closing day in the same month
+    invoiceDate.setDate(dueDay);
+    return getLocalDateString(invoiceDate);
+  } else {
+    // Due day is before or equal to closing day, so it's in the next month
+    invoiceDate.setMonth(invoiceDate.getMonth() + 1);
+    invoiceDate.setDate(dueDay);
+    return getLocalDateString(invoiceDate);
+  }
+}
+
+/**
  * Get the billing period for a given invoice month
  * Returns { start: YYYY-MM-DD, end: YYYY-MM-DD }
  */
