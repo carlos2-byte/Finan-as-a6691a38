@@ -17,21 +17,21 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppContent() {
-  const { isLocked, hasPassword, loading, refresh } = useAppLock();
+  const { hasPassword, loading } = useAppLock();
   const [unlocked, setUnlocked] = useState(false);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
 
-  // Always require unlock when app starts if password is set
+  // Only check lock status on initial load
   useEffect(() => {
-    if (!loading) {
+    if (!loading && !initialCheckDone) {
+      setInitialCheckDone(true);
       if (!hasPassword) {
         // No password configured, allow access
         setUnlocked(true);
-      } else {
-        // Password is configured - keep locked until user unlocks
-        setUnlocked(false);
       }
+      // If hasPassword is true, unlocked stays false until user unlocks
     }
-  }, [hasPassword, loading]);
+  }, [hasPassword, loading, initialCheckDone]);
 
   if (loading) {
     return (
@@ -41,13 +41,12 @@ function AppContent() {
     );
   }
 
-  // If password is set, always show lock screen until unlocked in this session
+  // If password is set and not unlocked in this session, show lock screen
   if (hasPassword && !unlocked) {
     return (
       <LockScreen 
         onUnlock={() => {
           setUnlocked(true);
-          refresh();
         }} 
       />
     );
