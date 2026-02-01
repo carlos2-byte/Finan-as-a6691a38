@@ -5,10 +5,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCreditCards, useCardDetails } from '@/hooks/useCreditCards';
+import { useTransactions } from '@/hooks/useTransactions';
 import { formatCurrency, getCurrentMonth, formatMonthYear } from '@/lib/formatters';
+import { getInvoiceDueDate, formatDateBR } from '@/lib/dateUtils';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { AddCardSheet } from '@/components/cards/AddCardSheet';
-import { CreditCard } from '@/lib/storage';
+import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog';
+import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
+import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
+import { CreditCard, Transaction } from '@/lib/storage';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -89,12 +94,25 @@ function CardItem({
 
 export default function CardsPage() {
   const { cards, loading, createCard, removeCard } = useCreditCards();
+  const { updateTransaction, removeTransaction, refresh } = useTransactions();
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<CreditCard | null>(null);
+  
+  // Transaction management states
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [showEditSheet, setShowEditSheet] = useState(false);
+  const [pendingEditType, setPendingEditType] = useState<'single' | 'fromThis' | 'all'>('single');
 
   const selectedCard = cards.find(c => c.id === selectedCardId);
-  const { purchases, monthlyTotal, availableLimit } = useCardDetails(selectedCardId || '');
+  const { purchases, monthlyTotal, availableLimit, refresh: refreshCard } = useCardDetails(selectedCardId || '');
+  
+  // Calculate due date for display
+  const dueDate = selectedCard?.closingDay && selectedCard?.dueDay 
+    ? getInvoiceDueDate(getCurrentMonth(), selectedCard.closingDay, selectedCard.dueDay)
+    : null;
 
   const handleDeleteCard = async () => {
     if (cardToDelete) {
@@ -103,6 +121,66 @@ export default function CardsPage() {
         setSelectedCardId(null);
       }
       setCardToDelete(null);
+    }
+  };
+
+  // Transaction handlers
+  const handleDeleteTransaction = (transaction: Transaction) => {
+    setTransactionToDelete(transaction);
+  };
+
+  const handleConfirmDelete = async (id: string, deleteType: 'single' | 'fromThis' | 'all') => {
+    await removeTransaction(id, deleteType);
+    setTransactionToDelete(null);
+    refreshCard();
+  };
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setTransactionToEdit(transaction);
+    
+    const hasMultiple = 
+      (transaction.installments && transaction.installments > 1) || 
+      transaction.parentId ||
+      transaction.recurrenceId;
+    
+    if (hasMultiple) {
+      setEditDialogOpen(true);
+    } else {
+      setShowEditSheet(true);
+    }
+  };
+
+  const handleEditConfirm = (editType: 'single' | 'fromThis' | 'all') => {
+    setPendingEditType(editType);
+    setEditDialogOpen(false);
+    setShowEditSheet(true);
+  };
+
+  const handleSubmitEdit = async (
+    tx: Omit<Transaction, 'id' | 'createdAt'>
+  ) => {
+    if (transactionToEdit) {
+      await updateTransaction(transactionToEdit.id, {
+        amount: tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
+        description: tx.description,
+        category: tx.category,
+        type: tx.type,
+        date: tx.date,
+        isCardPayment: tx.isCardPayment,
+        cardId: tx.cardId,
+      }, pendingEditType);
+      
+      setTransactionToEdit(null);
+      setPendingEditType('single');
+      refreshCard();
+    }
+  };
+
+  const handleEditSheetClose = (open: boolean) => {
+    setShowEditSheet(open);
+    if (!open) {
+      setTransactionToEdit(null);
+      setPendingEditType('single');
     }
   };
 
@@ -172,6 +250,11 @@ export default function CardsPage() {
                   <CardContent className="pt-4">
                     <p className="text-xs text-muted-foreground">Fatura Atual</p>
                     <p className="text-xl font-bold">{formatCurrency(monthlyTotal)}</p>
+                    {dueDate && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Vence em {formatDateBR(dueDate)}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
                 {selectedCard.limit && (
@@ -192,6 +275,9 @@ export default function CardsPage() {
                   <h3 className="font-medium mb-3">Compras Recentes</h3>
                   <TransactionList
                     transactions={purchases.slice(0, 10)}
+                    onDelete={handleDeleteTransaction}
+                    onEdit={handleEditTransaction}
+                    showActions
                     emptyMessage="Nenhuma compra neste cartão"
                   />
                 </CardContent>
@@ -208,7 +294,7 @@ export default function CardsPage() {
         onSubmit={createCard}
       />
 
-      {/* Delete Confirmation */}
+      {/* Delete Card Confirmation */}
       <AlertDialog open={!!cardToDelete} onOpenChange={() => setCardToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -229,6 +315,31 @@ export default function CardsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Transaction Sheet */}
+      <AddTransactionSheet
+        open={showEditSheet}
+        onOpenChange={handleEditSheetClose}
+        onSubmit={handleSubmitEdit}
+        cards={cards}
+        editingTransaction={transactionToEdit}
+      />
+
+      {/* Edit Transaction Dialog (for recurring/installments) */}
+      <EditTransactionDialog
+        transaction={transactionToEdit}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onConfirm={handleEditConfirm}
+      />
+
+      {/* Delete Transaction Dialog */}
+      <DeleteTransactionDialog
+        transaction={transactionToDelete}
+        open={!!transactionToDelete}
+        onOpenChange={(open) => !open && setTransactionToDelete(null)}
+        onDelete={handleConfirmDelete}
+      />
     </PageContainer>
   );
 }
