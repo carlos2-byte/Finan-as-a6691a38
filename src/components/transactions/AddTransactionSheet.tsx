@@ -16,7 +16,7 @@ import { getCategories, CreditCard, Transaction } from '@/lib/storage';
 import { getLocalDateString, getInvoiceMonth, addMonthsToDate, addYearsToDate } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Repeat, Calendar, CreditCard as CardIcon, Package } from 'lucide-react';
+import { Repeat, Calendar, CreditCard as CardIcon, Package, Banknote, Wallet } from 'lucide-react';
 
 interface AddTransactionSheetProps {
   open: boolean;
@@ -49,7 +49,7 @@ export function AddTransactionSheet({
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('other');
   const [date, setDate] = useState(getLocalDateString());
-  const [isCardPayment, setIsCardPayment] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'debit' | 'credit'>('cash');
   const [cardId, setCardId] = useState('');
   const [installments, setInstallments] = useState(1);
   const [isInstallmentTotal, setIsInstallmentTotal] = useState(true);
@@ -67,9 +67,9 @@ export function AddTransactionSheet({
         setDescription(editingTransaction.description?.replace(/\s*\(\d+\/\d+\)$/, '') || '');
         setCategory(editingTransaction.category || 'other');
         setDate(editingTransaction.date);
-        setIsCardPayment(editingTransaction.isCardPayment || false);
+        setPaymentMethod(editingTransaction.isCardPayment ? 'credit' : 'cash');
         setCardId(editingTransaction.cardId || '');
-        setInstallments(1); // Reset for editing
+        setInstallments(1);
         setIsInstallmentTotal(true);
         setIsRecurring(false);
         setRecurrenceType('monthly');
@@ -80,7 +80,7 @@ export function AddTransactionSheet({
         setDescription('');
         setCategory('other');
         setDate(getLocalDateString());
-        setIsCardPayment(false);
+        setPaymentMethod('cash');
         setCardId('');
         setInstallments(1);
         setIsInstallmentTotal(true);
@@ -103,6 +103,7 @@ export function AddTransactionSheet({
     const parsedAmount = parseFloat(amount.replace(',', '.'));
     if (isNaN(parsedAmount)) return;
 
+    const isCardPayment = paymentMethod === 'credit';
     let invoiceMonth = undefined;
     if (isCardPayment && cardId) {
       const card = cards.find(c => c.id === cardId);
@@ -312,20 +313,52 @@ export function AddTransactionSheet({
                   </div>
                 )}
 
-                {/* Card Payment (only for expenses and not recurring) */}
-                {type === 'expense' && cards.length > 0 && (
-                  <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
-                    <div className="flex items-center gap-2">
-                      <CardIcon className="h-4 w-4 text-muted-foreground" />
-                      <Label>Pagar com cartão?</Label>
+                {/* Payment Method (only for expenses) */}
+                {type === 'expense' && (
+                  <div className="space-y-2">
+                    <Label>Forma de Pagamento</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button
+                        type="button"
+                        variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                        className="flex flex-col h-auto py-3 gap-1"
+                        onClick={() => {
+                          setPaymentMethod('cash');
+                          setInstallments(1);
+                        }}
+                      >
+                        <Banknote className="h-5 w-5" />
+                        <span className="text-xs">Dinheiro</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={paymentMethod === 'debit' ? 'default' : 'outline'}
+                        className="flex flex-col h-auto py-3 gap-1"
+                        onClick={() => {
+                          setPaymentMethod('debit');
+                          setInstallments(1);
+                        }}
+                      >
+                        <Wallet className="h-5 w-5" />
+                        <span className="text-xs">Débito</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={paymentMethod === 'credit' ? 'default' : 'outline'}
+                        className="flex flex-col h-auto py-3 gap-1"
+                        onClick={() => setPaymentMethod('credit')}
+                      >
+                        <CardIcon className="h-5 w-5" />
+                        <span className="text-xs">Crédito</span>
+                      </Button>
                     </div>
-                    <Switch checked={isCardPayment} onCheckedChange={setIsCardPayment} />
                   </div>
                 )}
 
-                {/* Card Selection */}
-                {isCardPayment && type === 'expense' && (
-                  <div className="space-y-4 p-3 border rounded-lg bg-muted/10">
+                {/* Card Selection (only for credit) */}
+                {paymentMethod === 'credit' && type === 'expense' && cards.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Cartão</Label>
                     <Select value={cardId} onValueChange={setCardId}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o cartão" />
