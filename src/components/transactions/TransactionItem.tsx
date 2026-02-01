@@ -1,6 +1,8 @@
-import { Transaction, getCategoryById } from '@/lib/storage';
+import { Transaction, getCategoryById, getCreditCardById } from '@/lib/storage';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { getInvoiceDueDate, formatDateShortBR } from '@/lib/dateUtils';
+import { useState, useEffect } from 'react';
 import {
   TrendingUp,
   UtensilsCrossed,
@@ -14,6 +16,7 @@ import {
   Trash2,
   Repeat,
   Pencil,
+  Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -41,11 +44,30 @@ export function TransactionItem({
   onEdit,
   showActions = false,
 }: TransactionItemProps) {
+  const [displayDate, setDisplayDate] = useState<string>(transaction.date);
+  const [cardName, setCardName] = useState<string | null>(null);
+  
   const category = getCategoryById(transaction.category || 'other');
   const Icon = category?.icon ? iconMap[category.icon] || MoreHorizontal : MoreHorizontal;
   const isIncome = transaction.type === 'income';
   const isRecurring = !!transaction.recurrenceId;
   const isInstallment = transaction.installments && transaction.installments > 1;
+  const isCardPayment = transaction.isCardPayment && transaction.cardId;
+
+  // Calculate display date (due date for card payments)
+  useEffect(() => {
+    async function calculateDisplayDate() {
+      if (isCardPayment && transaction.cardId && transaction.invoiceMonth) {
+        const card = await getCreditCardById(transaction.cardId);
+        if (card?.closingDay && card?.dueDay) {
+          const dueDate = getInvoiceDueDate(transaction.invoiceMonth, card.closingDay, card.dueDay);
+          setDisplayDate(dueDate);
+          setCardName(card.name);
+        }
+      }
+    }
+    calculateDisplayDate();
+  }, [transaction, isCardPayment]);
 
   return (
     <div className="flex items-center gap-3 py-3 group">
@@ -71,8 +93,20 @@ export function TransactionItem({
             <Repeat className="h-3 w-3 text-primary shrink-0" />
           )}
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{formatDate(transaction.date)}</span>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+          {isCardPayment ? (
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              Venc. {formatDateShortBR(displayDate)}
+            </span>
+          ) : (
+            <span>{formatDate(transaction.date)}</span>
+          )}
+          {cardName && (
+            <span className="bg-muted px-1.5 py-0.5 rounded text-[10px]">
+              {cardName}
+            </span>
+          )}
           {isInstallment && (
             <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]">
               {transaction.currentInstallment}/{transaction.installments}
