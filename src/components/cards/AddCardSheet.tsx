@@ -54,7 +54,7 @@ export function AddCardSheet({ open, onOpenChange, onSubmit }: AddCardSheetProps
     }
   };
 
-  const days = Array.from({ length: 28 }, (_, i) => i + 1);
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
