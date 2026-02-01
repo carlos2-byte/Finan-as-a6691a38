@@ -9,6 +9,7 @@ import {
   Check,
   Lock,
   Unlock,
+  Trash2,
 } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useSettings } from '@/hooks/useSettings';
-import { exportAllData, importAllData } from '@/lib/storage';
+import { exportAllData, importAllData, clearAllData } from '@/lib/storage';
 import { isPasswordEnabled, removePassword } from '@/lib/security';
 import { toast } from '@/hooks/use-toast';
 import { PasswordSetupSheet } from '@/components/security/PasswordSetupSheet';
@@ -52,6 +53,7 @@ export default function SettingsPage() {
   const [hasPassword, setHasPassword] = useState(false);
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
   const [showRemovePassword, setShowRemovePassword] = useState(false);
+  const [showClearData, setShowClearData] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -114,6 +116,13 @@ export default function SettingsPage() {
     setHasPassword(false);
     setShowRemovePassword(false);
     toast({ title: 'Senha removida' });
+  };
+
+  const handleClearAllData = async () => {
+    await clearAllData();
+    setShowClearData(false);
+    toast({ title: 'Todos os dados foram apagados' });
+    window.location.reload();
   };
 
   return (
@@ -272,6 +281,15 @@ export default function SettingsPage() {
                 <Upload className="h-4 w-4 mr-2" />
                 {isImporting ? 'Importando...' : 'Importar Backup'}
               </Button>
+
+              <Button
+                variant="destructive"
+                className="w-full justify-start"
+                onClick={() => setShowClearData(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Apagar Todos os Dados
+              </Button>
             </CardContent>
           </Card>
 
@@ -304,6 +322,29 @@ export default function SettingsPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleRemovePassword}>
               Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear All Data Confirmation */}
+      <AlertDialog open={showClearData} onOpenChange={setShowClearData}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar todos os dados?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação irá remover permanentemente todas as suas transações,
+              cartões, investimentos, configurações e senha. Esta ação não pode
+              ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearAllData}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Apagar Tudo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
