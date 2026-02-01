@@ -307,6 +307,11 @@ export async function importAllData(jsonString: string): Promise<void> {
   }
 }
 
+// Clear all data
+export async function clearAllData(): Promise<void> {
+  await defaultAdapter.clear();
+}
+
 export default {
   getCreditCards,
   getCreditCardById,
