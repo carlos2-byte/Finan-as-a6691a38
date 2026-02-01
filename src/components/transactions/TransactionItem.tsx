@@ -94,14 +94,10 @@ export function TransactionItem({
           )}
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-          {isCardPayment ? (
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              Venc. {formatDateShortBR(displayDate)}
-            </span>
-          ) : (
-            <span>{formatDate(transaction.date)}</span>
-          )}
+          <span className="flex items-center gap-1">
+            {isCardPayment && <Calendar className="h-3 w-3" />}
+            {isCardPayment ? `Venc. ${formatDateShortBR(displayDate)}` : formatDate(transaction.date)}
+          </span>
           {cardName && (
             <span className="bg-muted px-1.5 py-0.5 rounded text-[10px]">
               {cardName}
@@ -131,13 +127,16 @@ export function TransactionItem({
         </span>
         
         {showActions && (
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
             {onEdit && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
-                onClick={() => onEdit(transaction)}
+                className="h-8 w-8 touch-manipulation"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(transaction);
+                }}
               >
                 <Pencil className="h-4 w-4 text-muted-foreground" />
               </Button>
@@ -146,8 +145,11 @@ export function TransactionItem({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
-                onClick={() => onDelete(transaction)}
+                className="h-8 w-8 touch-manipulation"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(transaction);
+                }}
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
