@@ -22,12 +22,12 @@ jobs:
       - name: Garantir Expo para o CLI
         run: npm install expo@54.0.33 --save --legacy-peer-deps
 
-      # 👉 NOVO BLOCO — cria ícones que o Expo exige
-      - name: Criar assets obrigatórios para Android
+      # ✅ Cria PNGs REAIS (não arquivos de texto)
+      - name: Criar ícones reais para Android
         run: |
           mkdir -p assets
-          echo "placeholder icon" > assets/icon.png
-          echo "placeholder adaptive icon" > assets/adaptive-icon.png
+          npx pngjs-cli blank --width 512 --height 512 assets/icon.png
+          npx pngjs-cli blank --width 512 --height 512 assets/adaptive-icon.png
 
       - name: Gerar pastas nativas
         run: npx expo prebuild --no-install
@@ -38,7 +38,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Gerar bundle JS para produção
+      - name: Exportar bundle JS para Android (essencial)
         run: |
           npx expo export -p android --output-dir android/app/src/main/assets
 
