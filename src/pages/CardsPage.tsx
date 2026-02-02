@@ -9,6 +9,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { formatCurrency, getCurrentMonth, formatMonthYear } from '@/lib/formatters';
 import { getInvoiceDueDate, formatDateBR } from '@/lib/dateUtils';
 import { TransactionList } from '@/components/transactions/TransactionList';
+import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { AddCardSheet } from '@/components/cards/AddCardSheet';
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
@@ -96,6 +97,7 @@ export default function CardsPage() {
   const { cards, loading, createCard, removeCard } = useCreditCards();
   const { updateTransaction, removeTransaction, refresh } = useTransactions();
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<CreditCard | null>(null);
   
@@ -107,12 +109,11 @@ export default function CardsPage() {
   const [pendingEditType, setPendingEditType] = useState<'single' | 'fromThis' | 'all'>('single');
 
   const selectedCard = cards.find(c => c.id === selectedCardId);
-  const currentMonth = getCurrentMonth();
-  const { purchases, monthlyTotal, availableLimit, refresh: refreshCard } = useCardDetails(selectedCardId || '', currentMonth);
+  const { purchases, monthlyTotal, availableLimit, refresh: refreshCard } = useCardDetails(selectedCardId || '', selectedMonth);
   
   // Calculate due date for display
   const dueDate = selectedCard?.closingDay && selectedCard?.dueDay 
-    ? getInvoiceDueDate(getCurrentMonth(), selectedCard.closingDay, selectedCard.dueDay)
+    ? getInvoiceDueDate(selectedMonth, selectedCard.closingDay, selectedCard.dueDay)
     : null;
 
   const handleDeleteCard = async () => {
@@ -245,11 +246,17 @@ export default function CardsPage() {
                 </Button>
               </div>
 
+              {/* Month Navigation */}
+              <MonthSelector 
+                month={selectedMonth} 
+                onMonthChange={setSelectedMonth} 
+              />
+
               {/* Card Stats */}
               <div className="grid grid-cols-2 gap-3">
                 <Card>
                   <CardContent className="pt-4">
-                    <p className="text-xs text-muted-foreground">Fatura Atual</p>
+                    <p className="text-xs text-muted-foreground">Fatura {formatMonthYear(selectedMonth)}</p>
                     <p className="text-xl font-bold">{formatCurrency(monthlyTotal)}</p>
                     {dueDate && (
                       <p className="text-xs text-muted-foreground mt-1">
@@ -273,13 +280,13 @@ export default function CardsPage() {
               {/* Purchases */}
               <Card>
                 <CardContent className="pt-4">
-                  <h3 className="font-medium mb-3">Compras Recentes</h3>
+                  <h3 className="font-medium mb-3">Compras do período</h3>
                   <TransactionList
-                    transactions={purchases.slice(0, 10)}
+                    transactions={purchases}
                     onDelete={handleDeleteTransaction}
                     onEdit={handleEditTransaction}
                     showActions
-                    emptyMessage="Nenhuma compra neste cartão"
+                    emptyMessage="Nenhuma compra neste período"
                   />
                 </CardContent>
               </Card>
