@@ -19,10 +19,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install Expo & EAS
-        run: |
-          npm install -g expo-cli
-          npm install -g eas-cli
+      - name: Install Expo localmente (correto)
+        run: npm install expo --save
+
+      - name: Install EAS (apenas local)
+        run: npm install eas-cli --save-dev
 
       - name: Expo Prebuild
         run: npx expo prebuild
