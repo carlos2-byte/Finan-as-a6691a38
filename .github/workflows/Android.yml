@@ -26,7 +26,7 @@ jobs:
         run: npm install eas-cli --save-dev
 
       - name: Gerar pastas nativas
-        run: npx expo prebuild
+        run: npx expo prebuild --no-install
 
       - name: Build do APK (nuvem)
         run: npx eas build -p android --non-interactive --no-wait
