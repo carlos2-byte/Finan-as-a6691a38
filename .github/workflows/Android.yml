@@ -1,34 +1,31 @@
-name: Android CI
+name: Build Android APK
 
 on:
-  push:
-    branches: [ "main" ] # Executa quando você envia código para a main
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
-    - name: Build with Gradle
-      run: ./gradlew assembleDebug
+      - name: Install dependencies
+        run: npm install
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
-        
+      - name: Install Expo & EAS
+        run: |
+          npm install -g expo-cli
+          npm install -g eas-cli
+
+      - name: Expo Prebuild
+        run: npx expo prebuild
+
+      - name: Build APK
+        run: npx eas build -p android --non-interactive --no-wait
