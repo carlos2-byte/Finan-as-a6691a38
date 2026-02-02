@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK (GitHub Only)
 
 on:
   workflow_dispatch:
@@ -28,5 +28,19 @@ jobs:
       - name: Gerar pastas nativas
         run: npx expo prebuild --no-install
 
-      - name: Build do APK (nuvem)
-        run: npx eas build -p android --non-interactive --no-wait
+      - name: Setup JDK (Android precisa disso)
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build APK direto no GitHub (SEM Expo)
+        run: |
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Salvar APK como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
