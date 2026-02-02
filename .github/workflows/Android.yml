@@ -20,7 +20,7 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Garantir Expo para o CLI
-        run: npm install expo@latest --save
+        run: npm install expo@54.0.33 --save --legacy-peer-deps
 
       - name: Instalar EAS localmente
         run: npm install eas-cli --save-dev
