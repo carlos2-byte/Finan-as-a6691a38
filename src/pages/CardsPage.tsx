@@ -1,30 +1,14 @@
 import { useState } from 'react';
-import { Plus, CreditCard as CardIcon, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, CreditCard as CardIcon } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCreditCards, useCardDetails } from '@/hooks/useCreditCards';
-import { useTransactions } from '@/hooks/useTransactions';
 import { formatCurrency, getCurrentMonth, formatMonthYear } from '@/lib/formatters';
-import { getInvoiceDueDate, formatDateBR } from '@/lib/dateUtils';
-import { TransactionList } from '@/components/transactions/TransactionList';
-import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { AddCardSheet } from '@/components/cards/AddCardSheet';
-import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog';
-import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
-import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
-import { CreditCard, Transaction } from '@/lib/storage';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { CreditCard } from '@/lib/storage';
 
 const CARD_COLORS = [
   'from-emerald-500 to-teal-600',
@@ -37,12 +21,10 @@ const CARD_COLORS = [
 function CardItem({
   card,
   index,
-  isSelected,
   onClick,
 }: {
   card: CreditCard;
   index: number;
-  isSelected: boolean;
   onClick: () => void;
 }) {
   const { monthlyTotal, availableLimit } = useCardDetails(card.id);
@@ -51,7 +33,7 @@ function CardItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left transition-transform ${isSelected ? 'scale-[1.02]' : ''}`}
+      className="w-full text-left transition-transform hover:scale-[1.01] active:scale-[0.99]"
     >
       <div
         className={`relative h-40 rounded-2xl bg-gradient-to-br ${colorClass} p-5 shadow-lg overflow-hidden`}
@@ -94,96 +76,12 @@ function CardItem({
 }
 
 export default function CardsPage() {
-  const { cards, loading, createCard, removeCard } = useCreditCards();
-  const { updateTransaction, removeTransaction, refresh } = useTransactions();
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  const navigate = useNavigate();
+  const { cards, loading, createCard } = useCreditCards();
   const [showAddSheet, setShowAddSheet] = useState(false);
-  const [cardToDelete, setCardToDelete] = useState<CreditCard | null>(null);
-  
-  // Transaction management states
-  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [showEditSheet, setShowEditSheet] = useState(false);
-  const [pendingEditType, setPendingEditType] = useState<'single' | 'fromThis' | 'all'>('single');
 
-  const selectedCard = cards.find(c => c.id === selectedCardId);
-  const { purchases, monthlyTotal, availableLimit, refresh: refreshCard } = useCardDetails(selectedCardId || '', selectedMonth);
-  
-  // Calculate due date for display
-  const dueDate = selectedCard?.closingDay && selectedCard?.dueDay 
-    ? getInvoiceDueDate(selectedMonth, selectedCard.closingDay, selectedCard.dueDay)
-    : null;
-
-  const handleDeleteCard = async () => {
-    if (cardToDelete) {
-      await removeCard(cardToDelete.id);
-      if (selectedCardId === cardToDelete.id) {
-        setSelectedCardId(null);
-      }
-      setCardToDelete(null);
-    }
-  };
-
-  // Transaction handlers
-  const handleDeleteTransaction = (transaction: Transaction) => {
-    setTransactionToDelete(transaction);
-  };
-
-  const handleConfirmDelete = async (id: string, deleteType: 'single' | 'fromThis' | 'all') => {
-    await removeTransaction(id, deleteType);
-    setTransactionToDelete(null);
-    refreshCard();
-  };
-
-  const handleEditTransaction = (transaction: Transaction) => {
-    setTransactionToEdit(transaction);
-    
-    const hasMultiple = 
-      (transaction.installments && transaction.installments > 1) || 
-      transaction.parentId ||
-      transaction.recurrenceId;
-    
-    if (hasMultiple) {
-      setEditDialogOpen(true);
-    } else {
-      setShowEditSheet(true);
-    }
-  };
-
-  const handleEditConfirm = (editType: 'single' | 'fromThis' | 'all') => {
-    setPendingEditType(editType);
-    setEditDialogOpen(false);
-    setShowEditSheet(true);
-  };
-
-  const handleSubmitEdit = async (
-    tx: Omit<Transaction, 'id' | 'createdAt'>
-  ) => {
-    if (transactionToEdit) {
-      await updateTransaction(transactionToEdit.id, {
-        amount: tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
-        description: tx.description,
-        category: tx.category,
-        type: tx.type,
-        date: tx.date,
-        isCardPayment: tx.isCardPayment,
-        cardId: tx.cardId,
-      }, pendingEditType);
-      
-      setTransactionToEdit(null);
-      setPendingEditType('single');
-      refreshCard();
-    }
-  };
-
-  const handleEditSheetClose = (open: boolean) => {
-    setShowEditSheet(open);
-    if (!open) {
-      setTransactionToEdit(null);
-      setPendingEditType('single');
-    }
+  const handleCardClick = (cardId: string) => {
+    navigate(`/cards/${cardId}`);
   };
 
   return (
@@ -199,7 +97,7 @@ export default function CardsPage() {
       }
     >
       <ScrollArea className="h-[calc(100vh-140px)]">
-        <div className="space-y-6 pb-4">
+        <div className="space-y-4 pb-4">
           {/* Cards List */}
           {cards.length === 0 ? (
             <Card>
@@ -219,77 +117,9 @@ export default function CardsPage() {
                   key={card.id}
                   card={card}
                   index={index}
-                  isSelected={selectedCardId === card.id}
-                  onClick={() =>
-                    setSelectedCardId(selectedCardId === card.id ? null : card.id)
-                  }
+                  onClick={() => handleCardClick(card.id)}
                 />
               ))}
-            </div>
-          )}
-
-          {/* Selected Card Details */}
-          {selectedCard && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">
-                  Detalhes - {selectedCard.name}
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => setCardToDelete(selectedCard)}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Excluir
-                </Button>
-              </div>
-
-              {/* Month Navigation */}
-              <MonthSelector 
-                month={selectedMonth} 
-                onMonthChange={setSelectedMonth} 
-              />
-
-              {/* Card Stats */}
-              <div className="grid grid-cols-2 gap-3">
-                <Card>
-                  <CardContent className="pt-4">
-                    <p className="text-xs text-muted-foreground">Fatura {formatMonthYear(selectedMonth)}</p>
-                    <p className="text-xl font-bold">{formatCurrency(monthlyTotal)}</p>
-                    {dueDate && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Vence em {formatDateBR(dueDate)}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-                {selectedCard.limit && (
-                  <Card>
-                    <CardContent className="pt-4">
-                      <p className="text-xs text-muted-foreground">Disponível</p>
-                      <p className="text-xl font-bold text-success">
-                        {formatCurrency(availableLimit)}
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* Purchases */}
-              <Card>
-                <CardContent className="pt-4">
-                  <h3 className="font-medium mb-3">Compras do período</h3>
-                  <TransactionList
-                    transactions={purchases}
-                    onDelete={handleDeleteTransaction}
-                    onEdit={handleEditTransaction}
-                    showActions
-                    emptyMessage="Nenhuma compra neste período"
-                  />
-                </CardContent>
-              </Card>
             </div>
           )}
         </div>
@@ -300,53 +130,6 @@ export default function CardsPage() {
         open={showAddSheet}
         onOpenChange={setShowAddSheet}
         onSubmit={createCard}
-      />
-
-      {/* Delete Card Confirmation */}
-      <AlertDialog open={!!cardToDelete} onOpenChange={() => setCardToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir cartão?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir o cartão "{cardToDelete?.name}"? As
-              transações vinculadas a este cartão não serão excluídas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteCard}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Edit Transaction Sheet */}
-      <AddTransactionSheet
-        open={showEditSheet}
-        onOpenChange={handleEditSheetClose}
-        onSubmit={handleSubmitEdit}
-        cards={cards}
-        editingTransaction={transactionToEdit}
-      />
-
-      {/* Edit Transaction Dialog (for recurring/installments) */}
-      <EditTransactionDialog
-        transaction={transactionToEdit}
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        onConfirm={handleEditConfirm}
-      />
-
-      {/* Delete Transaction Dialog */}
-      <DeleteTransactionDialog
-        transaction={transactionToDelete}
-        open={!!transactionToDelete}
-        onOpenChange={(open) => !open && setTransactionToDelete(null)}
-        onDelete={handleConfirmDelete}
       />
     </PageContainer>
   );

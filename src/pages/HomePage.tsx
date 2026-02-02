@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { BalanceCard } from '@/components/home/BalanceCard';
+import { CoverageAlert } from '@/components/home/CoverageAlert';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { StatementList } from '@/components/transactions/StatementList';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
@@ -14,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useStatement, isConsolidatedInvoice } from '@/hooks/useStatement';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCreditCards } from '@/hooks/useCreditCards';
+import { useInvestments } from '@/hooks/useInvestments';
 import { getCurrentMonth } from '@/lib/formatters';
 import { Transaction } from '@/lib/storage';
 import { ConsolidatedInvoice } from '@/lib/invoiceUtils';
@@ -28,6 +30,9 @@ export default function HomePage() {
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [pendingEditType, setPendingEditType] = useState<'single' | 'fromThis' | 'all'>('single');
+  
+  // Coverage alert state
+  const [coverageInfo, setCoverageInfo] = useState<{ amount: number; investmentName: string } | null>(null);
 
   // Use the new statement hook for display
   const { items, loading, totals, balance, refresh: refreshStatement } = useStatement(month);
@@ -35,6 +40,40 @@ export default function HomePage() {
   // Keep useTransactions for CRUD operations
   const { addTransaction, updateTransaction, removeTransaction } = useTransactions(month);
   const { cards } = useCreditCards();
+  const { useCoverage, refresh: refreshInvestments } = useInvestments();
+
+  // Check for negative balance and auto-cover with investments
+  useEffect(() => {
+    const checkAndCoverNegativeBalance = async () => {
+      if (loading || balance >= 0) return;
+      
+      const negativeAmount = Math.abs(balance);
+      const result = await useCoverage(negativeAmount);
+      
+      if (result) {
+        // Create income transaction for the coverage
+        await addTransaction({
+          amount: result.usedAmount,
+          description: `Cobertura automática: ${result.investmentName}`,
+          type: 'income',
+          date: new Date().toISOString().split('T')[0],
+          category: 'income',
+        });
+        
+        // Show alert
+        setCoverageInfo({
+          amount: result.usedAmount,
+          investmentName: result.investmentName,
+        });
+        
+        // Refresh data
+        refreshStatement();
+        refreshInvestments();
+      }
+    };
+
+    checkAndCoverNegativeBalance();
+  }, [balance, loading, month]);
 
   // Filter items by search query
   const filteredItems = useMemo(() => {
@@ -162,6 +201,15 @@ export default function HomePage() {
       }
     >
       <div className="space-y-6">
+        {/* Coverage Alert */}
+        {coverageInfo && (
+          <CoverageAlert
+            amount={coverageInfo.amount}
+            investmentName={coverageInfo.investmentName}
+            onDismiss={() => setCoverageInfo(null)}
+          />
+        )}
+
         {/* Balance Card */}
         <BalanceCard
           balance={balance}

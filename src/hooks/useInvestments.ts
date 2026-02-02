@@ -14,6 +14,10 @@ import {
   YieldHistory,
   getDailyYieldEstimate,
   getMonthlyYieldEstimate,
+  updateInvestmentYieldRate,
+  toggleCoverNegativeBalance,
+  getInvestmentsForCoverage,
+  useInvestmentForCoverage,
 } from '@/lib/investments';
 
 export function useInvestments() {
@@ -78,6 +82,28 @@ export function useInvestments() {
     setDefaultRate(rate);
   }, []);
 
+  const updateYieldRate = useCallback(async (id: string, newRate: number) => {
+    await updateInvestmentYieldRate(id, newRate);
+    await loadInvestments();
+  }, [loadInvestments]);
+
+  const toggleCoverage = useCallback(async (id: string) => {
+    await toggleCoverNegativeBalance(id);
+    await loadInvestments();
+  }, [loadInvestments]);
+
+  const getCoverageInvestments = useCallback(async () => {
+    return await getInvestmentsForCoverage();
+  }, []);
+
+  const useCoverage = useCallback(async (negativeAmount: number) => {
+    const result = await useInvestmentForCoverage(negativeAmount);
+    if (result) {
+      await loadInvestments();
+    }
+    return result;
+  }, [loadInvestments]);
+
   return {
     investments,
     totalInvested,
@@ -88,6 +114,10 @@ export function useInvestments() {
     deposit,
     withdraw,
     updateDefaultRate,
+    updateYieldRate,
+    toggleCoverage,
+    getCoverageInvestments,
+    useCoverage,
     refresh: loadInvestments,
     getDailyYieldEstimate,
     getMonthlyYieldEstimate,

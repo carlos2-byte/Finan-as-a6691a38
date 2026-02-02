@@ -26,6 +26,14 @@ export interface Investment {
   lastYieldDate?: string; // Last date yield was calculated
   isActive: boolean;
   createdAt: string;
+  canCoverNegativeBalance?: boolean; // If true, can be used to cover negative balance
+  yieldRateHistory?: YieldRateChange[]; // Track rate changes for prospective calculations
+}
+
+export interface YieldRateChange {
+  date: string; // YYYY-MM-DD - date the rate changed
+  previousRate: number;
+  newRate: number;
 }
 
 export interface YieldHistory {
@@ -110,6 +118,84 @@ export async function updateInvestment(investment: Investment): Promise<void> {
   const investments = await defaultAdapter.getItem<Record<string, Investment>>(INVESTMENTS_KEY, {}) ?? {};
   investments[investment.id] = investment;
   await defaultAdapter.setItem(INVESTMENTS_KEY, investments);
+}
+
+/**
+ * Update investment yield rate (prospective only - doesn't recalculate past)
+ * Records the change in yieldRateHistory so future calculations use the new rate
+ */
+export async function updateInvestmentYieldRate(id: string, newRate: number): Promise<void> {
+  const investment = await getInvestmentById(id);
+  if (!investment) return;
+  
+  const today = getLocalDateString();
+  const previousRate = investment.yieldRate;
+  
+  // Record the rate change in history
+  const rateChange: YieldRateChange = {
+    date: today,
+    previousRate,
+    newRate,
+  };
+  
+  investment.yieldRate = newRate;
+  investment.yieldRateHistory = investment.yieldRateHistory || [];
+  investment.yieldRateHistory.push(rateChange);
+  
+  await updateInvestment(investment);
+}
+
+/**
+ * Toggle investment ability to cover negative balance
+ */
+export async function toggleCoverNegativeBalance(id: string): Promise<void> {
+  const investment = await getInvestmentById(id);
+  if (!investment) return;
+  
+  investment.canCoverNegativeBalance = !investment.canCoverNegativeBalance;
+  await updateInvestment(investment);
+}
+
+/**
+ * Get investments that can cover negative balance
+ */
+export async function getInvestmentsForCoverage(): Promise<Investment[]> {
+  const investments = await getInvestments();
+  return investments
+    .filter(i => i.isActive && i.canCoverNegativeBalance && i.currentAmount > 0)
+    .sort((a, b) => b.currentAmount - a.currentAmount); // Highest balance first
+}
+
+/**
+ * Use investment to cover negative balance
+ * Returns amount used and investment details for creating transaction
+ */
+export async function useInvestmentForCoverage(
+  negativeAmount: number // Positive value of the deficit
+): Promise<{ usedAmount: number; investmentName: string; investmentId: string } | null> {
+  const investments = await getInvestmentsForCoverage();
+  if (investments.length === 0) return null;
+  
+  // Use the first available investment (highest balance)
+  const investment = investments[0];
+  const amountToUse = Math.min(negativeAmount, investment.currentAmount);
+  
+  if (amountToUse <= 0) return null;
+  
+  // Deduct from investment
+  investment.currentAmount -= amountToUse;
+  if (investment.currentAmount <= 0) {
+    investment.currentAmount = 0;
+    investment.isActive = false;
+  }
+  
+  await updateInvestment(investment);
+  
+  return {
+    usedAmount: amountToUse,
+    investmentName: investment.name,
+    investmentId: investment.id,
+  };
 }
 
 /**
