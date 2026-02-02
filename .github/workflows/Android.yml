@@ -16,17 +16,14 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install dependencies
-        run: npm install
+      - name: Instalar dependências (modo compatível)
+        run: npm install --legacy-peer-deps
 
-      - name: Install Expo localmente (correto)
-        run: npm install expo --save
-
-      - name: Install EAS (apenas local)
+      - name: Instalar EAS localmente
         run: npm install eas-cli --save-dev
 
-      - name: Expo Prebuild
+      - name: Gerar pastas nativas
         run: npx expo prebuild
 
-      - name: Build APK
+      - name: Build do APK (nuvem)
         run: npx eas build -p android --non-interactive --no-wait
