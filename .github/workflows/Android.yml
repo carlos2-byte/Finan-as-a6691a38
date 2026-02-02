@@ -22,9 +22,6 @@ jobs:
       - name: Garantir Expo para o CLI
         run: npm install expo@54.0.33 --save --legacy-peer-deps
 
-      - name: Instalar EAS localmente
-        run: npm install eas-cli --save-dev
-
       - name: Gerar pastas nativas
         run: npx expo prebuild --no-install
 
@@ -34,12 +31,17 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Gerar bundle JS dentro do app
+      # 👉 NOVO PASSO CRÍTICO — gera o bundle corretamente
+      - name: Gerar bundle JS para produção
+        run: |
+          npx expo export -p android --output-dir android/app/src/main/assets
+
+      - name: Limpar build antigo
         run: |
           cd android
-          ./gradlew bundleRelease
+          ./gradlew clean
 
-      - name: Gerar APK release (funciona offline)
+      - name: Gerar APK release (offline)
         run: |
           cd android
           ./gradlew assembleRelease
