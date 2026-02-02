@@ -14,10 +14,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Instalar dependências (modo compatível)
         run: npm install --legacy-peer-deps
+
+      - name: Garantir Expo para o CLI
+        run: npm install expo@latest --save
 
       - name: Instalar EAS localmente
         run: npm install eas-cli --save-dev
