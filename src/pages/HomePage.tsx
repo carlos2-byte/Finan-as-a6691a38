@@ -1,21 +1,25 @@
 import { useState, useMemo } from 'react';
 import { Plus, Search, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
-import { TransactionList } from '@/components/transactions/TransactionList';
+import { StatementList } from '@/components/transactions/StatementList';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useStatement, isConsolidatedInvoice } from '@/hooks/useStatement';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCreditCards } from '@/hooks/useCreditCards';
 import { getCurrentMonth } from '@/lib/formatters';
 import { Transaction } from '@/lib/storage';
+import { ConsolidatedInvoice } from '@/lib/invoiceUtils';
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [month, setMonth] = useState(getCurrentMonth());
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,27 +29,38 @@ export default function HomePage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [pendingEditType, setPendingEditType] = useState<'single' | 'fromThis' | 'all'>('single');
 
-  const { transactions, loading, totals, balance, addTransaction, updateTransaction, removeTransaction } = 
-    useTransactions(month);
+  // Use the new statement hook for display
+  const { items, loading, totals, balance, refresh: refreshStatement } = useStatement(month);
+  
+  // Keep useTransactions for CRUD operations
+  const { addTransaction, updateTransaction, removeTransaction } = useTransactions(month);
   const { cards } = useCreditCards();
 
-  // Filter transactions by search query
-  const filteredTransactions = useMemo(() => {
-    if (!searchQuery.trim()) return transactions;
+  // Filter items by search query
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return items;
     const query = searchQuery.toLowerCase();
-    return transactions.filter(tx =>
-      tx.description?.toLowerCase().includes(query) ||
-      tx.category?.toLowerCase().includes(query)
-    );
-  }, [transactions, searchQuery]);
+    return items.filter(item => {
+      if (isConsolidatedInvoice(item)) {
+        return item.cardName.toLowerCase().includes(query) || 
+               item.transactions.some(tx => 
+                 tx.description?.toLowerCase().includes(query) ||
+                 tx.category?.toLowerCase().includes(query)
+               );
+      }
+      return item.description?.toLowerCase().includes(query) ||
+             item.category?.toLowerCase().includes(query);
+    });
+  }, [items, searchQuery]);
 
   const handleDelete = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
   };
 
-  const handleConfirmDelete = (id: string, deleteType: 'single' | 'fromThis' | 'all') => {
-    removeTransaction(id, deleteType);
+  const handleConfirmDelete = async (id: string, deleteType: 'single' | 'fromThis' | 'all') => {
+    await removeTransaction(id, deleteType);
     setTransactionToDelete(null);
+    refreshStatement();
   };
 
   const handleEdit = (transaction: Transaction) => {
@@ -96,9 +111,11 @@ export default function HomePage() {
       
       setTransactionToEdit(null);
       setPendingEditType('single');
+      refreshStatement();
     } else {
       // New transaction
       await addTransaction(tx, options);
+      refreshStatement();
     }
   };
 
@@ -108,6 +125,11 @@ export default function HomePage() {
       setTransactionToEdit(null);
       setPendingEditType('single');
     }
+  };
+
+  const handleInvoiceClick = (invoice: ConsolidatedInvoice) => {
+    // Navigate to cards page - in the future, could open a modal with invoice details
+    navigate('/cards');
   };
 
   return (
@@ -148,15 +170,16 @@ export default function HomePage() {
           loading={loading}
         />
 
-        {/* Transactions */}
+        {/* Statement */}
         <section>
-          <h2 className="text-lg font-semibold mb-3">Transações</h2>
+          <h2 className="text-lg font-semibold mb-3">Extrato</h2>
           <ScrollArea className="h-[calc(100vh-420px)]">
-            <TransactionList
-              transactions={filteredTransactions}
+            <StatementList
+              items={filteredItems}
               loading={loading}
-              onDelete={handleDelete}
-              onEdit={handleEdit}
+              onDeleteTransaction={handleDelete}
+              onEditTransaction={handleEdit}
+              onInvoiceClick={handleInvoiceClick}
               showActions
               emptyMessage={
                 searchQuery
