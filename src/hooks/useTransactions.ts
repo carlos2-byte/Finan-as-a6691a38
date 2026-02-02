@@ -16,7 +16,8 @@ import {
   getTransactionById,
 } from '@/lib/storage';
 import { generateId, getCurrentMonth } from '@/lib/formatters';
-import { addMonthsToDate, addWeeksToDate, addYearsToDate, getInvoiceMonth, getLocalDateString } from '@/lib/dateUtils';
+import { addMonthsToDate, addWeeksToDate, addYearsToDate, getLocalDateString } from '@/lib/dateUtils';
+import { calculateInvoiceMonth } from '@/lib/invoiceUtils';
 
 interface AddTransactionOptions {
   installments?: number;
@@ -98,7 +99,7 @@ export function useTransactions(month?: string) {
         while (currentDate <= recurrenceEndDate) {
           let invoiceMonth: string | undefined;
           if (tx.isCardPayment) {
-            invoiceMonth = getInvoiceMonth(currentDate, closingDay);
+            invoiceMonth = calculateInvoiceMonth(currentDate, closingDay);
           }
 
           recurringTransactions.push({
@@ -148,7 +149,7 @@ export function useTransactions(month?: string) {
           
           let invoiceMonth: string | undefined;
           if (tx.isCardPayment) {
-            invoiceMonth = getInvoiceMonth(installmentDate, closingDay);
+            invoiceMonth = calculateInvoiceMonth(installmentDate, closingDay);
           }
 
           installmentTransactions.push({
@@ -170,7 +171,7 @@ export function useTransactions(month?: string) {
         // Single transaction
         let invoiceMonth: string | undefined;
         if (tx.isCardPayment) {
-          invoiceMonth = getInvoiceMonth(tx.date, closingDay);
+          invoiceMonth = calculateInvoiceMonth(tx.date, closingDay);
         }
 
         const newTx: Transaction = {
