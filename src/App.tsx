@@ -10,6 +10,7 @@ import { useAppLock } from "@/hooks/useAppLock";
 import HomePage from "./pages/HomePage";
 import DashboardPage from "./pages/DashboardPage";
 import CardsPage from "./pages/CardsPage";
+import CardStatementPage from "./pages/CardStatementPage";
 import SettingsPage from "./pages/SettingsPage";
 import InvestmentsPage from "./pages/InvestmentsPage";
 import NotFound from "./pages/NotFound";
@@ -60,6 +61,7 @@ function AppContent() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/investments" element={<InvestmentsPage />} />
           <Route path="/cards" element={<CardsPage />} />
+          <Route path="/cards/:cardId" element={<CardStatementPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

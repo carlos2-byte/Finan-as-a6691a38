@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Plus, TrendingUp, Trash2, ArrowDownToLine, ArrowUpFromLine, Percent, Info } from 'lucide-react';
+import { Plus, TrendingUp, Trash2, ArrowDownToLine, ArrowUpFromLine, Percent, Info, Shield, Edit2 } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import {
   Sheet,
   SheetContent,
@@ -45,7 +46,9 @@ export default function InvestmentsPage() {
     remove, 
     deposit, 
     withdraw, 
-    updateDefaultRate 
+    updateDefaultRate,
+    updateYieldRate,
+    toggleCoverage,
   } = useInvestments();
   const { addTransaction } = useTransactions(getCurrentMonth());
 
@@ -53,7 +56,7 @@ export default function InvestmentsPage() {
   const [showRateSheet, setShowRateSheet] = useState(false);
   const [showWithdrawSheet, setShowWithdrawSheet] = useState(false);
   const [showDepositSheet, setShowDepositSheet] = useState(false);
-  const [showHistorySheet, setShowHistorySheet] = useState(false);
+  const [showEditRateSheet, setShowEditRateSheet] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
   const [investmentToDelete, setInvestmentToDelete] = useState<Investment | null>(null);
 
@@ -63,6 +66,7 @@ export default function InvestmentsPage() {
   const [newAmount, setNewAmount] = useState('');
   const [newRate, setNewRate] = useState('');
   const [actionAmount, setActionAmount] = useState('');
+  const [editRate, setEditRate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -147,6 +151,40 @@ export default function InvestmentsPage() {
     toast({ title: 'Taxa atualizada!' });
     setNewRate('');
     setShowRateSheet(false);
+  };
+
+  const handleEditInvestmentRate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInvestment) return;
+    
+    const rate = parseFloat(editRate.replace(',', '.'));
+    if (isNaN(rate) || rate < 0) return;
+
+    setIsSubmitting(true);
+    try {
+      await updateYieldRate(selectedInvestment.id, rate);
+      toast({ 
+        title: 'Taxa atualizada!',
+        description: 'O novo rendimento será aplicado a partir de hoje.'
+      });
+      setEditRate('');
+      setShowEditRateSheet(false);
+      setSelectedInvestment(null);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleToggleCoverage = async (inv: Investment) => {
+    await toggleCoverage(inv.id);
+    toast({ 
+      title: inv.canCoverNegativeBalance 
+        ? 'Cobertura desativada' 
+        : 'Cobertura ativada',
+      description: inv.canCoverNegativeBalance
+        ? 'Este investimento não será mais usado para cobrir saldo negativo.'
+        : 'Este investimento poderá ser usado para cobrir saldo negativo.'
+    });
   };
 
   const handleDelete = async () => {
@@ -247,6 +285,18 @@ export default function InvestmentsPage() {
                                 {inv.type}
                               </span>
                             )}
+                            {inv.canCoverNegativeBalance && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Shield className="h-4 w-4 text-primary" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Pode cobrir saldo negativo</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
                           <p className="text-xs text-muted-foreground">
                             Início: {formatDateBR(inv.startDate)} • {inv.yieldRate}% a.a.
@@ -305,6 +355,18 @@ export default function InvestmentsPage() {
                           </p>
                         </div>
                       </div>
+
+                      {/* Coverage Toggle */}
+                      <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg mb-3">
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">Cobrir saldo negativo</span>
+                        </div>
+                        <Switch
+                          checked={inv.canCoverNegativeBalance || false}
+                          onCheckedChange={() => handleToggleCoverage(inv)}
+                        />
+                      </div>
                       
                       <div className="flex gap-2">
                         <Button
@@ -330,6 +392,18 @@ export default function InvestmentsPage() {
                         >
                           <ArrowUpFromLine className="h-4 w-4 mr-1" />
                           Resgatar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={() => {
+                            setSelectedInvestment(inv);
+                            setEditRate(String(inv.yieldRate));
+                            setShowEditRateSheet(true);
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </CardContent>
@@ -383,7 +457,7 @@ export default function InvestmentsPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Taxa de Rendimento (% a.a.) - opcional</Label>
+              <Label>Taxa de Rendimento (% a.a.)</Label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -426,6 +500,35 @@ export default function InvestmentsPage() {
             </div>
             <Button type="submit" className="w-full">
               Salvar
+            </Button>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Edit Investment Rate Sheet */}
+      <Sheet open={showEditRateSheet} onOpenChange={setShowEditRateSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl">
+          <SheetHeader className="mb-6">
+            <SheetTitle>Alterar Taxa de {selectedInvestment?.name}</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleEditInvestmentRate} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nova Taxa Anual (%)</Label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={editRate}
+                onChange={e => setEditRate(e.target.value)}
+                placeholder="Ex: 7.5"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                <strong>Importante:</strong> A nova taxa será aplicada apenas a partir de hoje.
+                O histórico de rendimentos passados não será recalculado.
+              </p>
+            </div>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Salvando...' : 'Atualizar Taxa'}
             </Button>
           </form>
         </SheetContent>
