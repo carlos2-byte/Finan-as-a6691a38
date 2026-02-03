@@ -131,12 +131,12 @@ export function AddCardSheet({ open, onOpenChange, cards = [], onSubmit }: AddCa
               <p className="text-xs text-muted-foreground mb-2">
                 Selecione qual cartão será usado para pagar a fatura deste cartão
               </p>
-              <Select value={defaultPayerCardId} onValueChange={setDefaultPayerCardId}>
+              <Select value={defaultPayerCardId || 'none'} onValueChange={(val) => setDefaultPayerCardId(val === 'none' ? '' : val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Nenhum (pagar manualmente)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum (pagar manualmente)</SelectItem>
+                  <SelectItem value="none">Nenhum (pagar manualmente)</SelectItem>
                   {availablePayerCards.map(c => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name} {c.last4 ? `(•••• ${c.last4})` : ''}
