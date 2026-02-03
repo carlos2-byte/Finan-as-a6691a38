@@ -102,14 +102,17 @@ export function useTransactions(month?: string) {
         }
       };
 
-      // Handle recurring transactions
-      if (isRecurring && recurrenceEndDate) {
+      // Handle recurring transactions (indefinite - generate 5 years ahead)
+      if (isRecurring) {
         const recurrenceId = generateId();
         const recurringTransactions: Transaction[] = [];
         let currentDate = tx.date;
         let totalAmount = 0;
         
-        while (currentDate <= recurrenceEndDate) {
+        // Generate transactions for the next 5 years (will be extended when user views future months)
+        const maxEndDate = addYearsToDate(tx.date, 5);
+        
+        while (currentDate <= maxEndDate) {
           let invoiceMonth: string | undefined;
           if (tx.isCardPayment) {
             invoiceMonth = calculateInvoiceMonth(currentDate, closingDay);
