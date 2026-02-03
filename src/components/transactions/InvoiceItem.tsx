@@ -35,8 +35,8 @@ export function InvoiceItem({ invoice, onClick }: InvoiceItemProps) {
         </div>
       </div>
 
-      <span className="font-semibold text-sm tabular-nums text-foreground whitespace-nowrap shrink-0">
-        {formatCurrency(-invoice.total)}
+      <span className="font-semibold text-sm tabular-nums text-foreground whitespace-nowrap shrink-0 pl-2">
+        -{formatCurrency(invoice.total)}
       </span>
     </button>
   );
