@@ -144,17 +144,21 @@ export default function CardStatementPage() {
   }) => {
     if (!card) return;
 
-    // Calculate the due date for the invoice being paid
-    const invoiceDueDate = card.closingDay && card.dueDay 
-      ? getInvoiceDueDate(selectedMonth, card.closingDay, card.dueDay)
-      : data.date;
+    // Calculate the due date for the invoice being paid.
+    // IMPORTANT: Always compute from the card config (with safe defaults) so that
+    // card-to-card payments are scheduled on the target card's due date (not on the
+    // day the user performed the payment).
+    const targetClosingDay = Number(card.closingDay ?? 25);
+    const targetDueDay = Number(card.dueDay ?? 5);
+    const invoiceDueDate = getInvoiceDueDate(selectedMonth, targetClosingDay, targetDueDay);
 
     // If paying with another card, create the transaction on that card's invoice
     if (data.paymentSource === 'credit' && data.sourceCardId) {
       const sourceCard = await getCreditCardById(data.sourceCardId);
       if (sourceCard) {
         // Use the due date of the card being paid to calculate which invoice month on source card
-        const sourceInvoiceMonth = calculateInvoiceMonth(invoiceDueDate, sourceCard.closingDay || 25);
+        const sourceClosingDay = Number(sourceCard.closingDay ?? 25);
+        const sourceInvoiceMonth = calculateInvoiceMonth(invoiceDueDate, sourceClosingDay);
         
         // Create expense on source card (this card is paying, so it incurs the debt)
         // The transaction date is the due date of the paid card's invoice
@@ -179,7 +183,7 @@ export default function CardStatementPage() {
         await saveTransaction(paymentTx);
         
         // Update source card limit (consume limit)
-        if (sourceCard.limit) {
+        if (typeof sourceCard.limit === 'number') {
           await updateCreditCard({ ...sourceCard, limit: sourceCard.limit - Math.abs(data.amount) });
         }
       }
@@ -201,7 +205,7 @@ export default function CardStatementPage() {
     }
     
     // Restore limit on the card being paid
-    if (card.limit) {
+    if (typeof card.limit === 'number') {
       const newLimit = card.limit + Math.abs(data.amount);
       await updateCreditCard({ ...card, limit: newLimit });
     }
