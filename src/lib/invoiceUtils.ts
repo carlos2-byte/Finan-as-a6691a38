@@ -85,18 +85,22 @@ export async function getConsolidatedInvoicesForMonth(
   const invoices: ConsolidatedInvoice[] = [];
   
   for (const card of cards) {
-    if (!card.closingDay || !card.dueDay) continue;
+    // Use default values if not set
+    const closingDay = card.closingDay || 25;
+    const dueDay = card.dueDay || 5;
     
     // Get all card transactions
     const cardTransactions = allTransactions.filter(
       tx => tx.isCardPayment && tx.cardId === card.id && tx.type === 'expense'
     );
     
+    if (cardTransactions.length === 0) continue;
+    
     // Group by invoice month
     const byInvoiceMonth = new Map<string, Transaction[]>();
     
     for (const tx of cardTransactions) {
-      const invoiceMonth = tx.invoiceMonth || calculateInvoiceMonth(tx.date, card.closingDay);
+      const invoiceMonth = tx.invoiceMonth || calculateInvoiceMonth(tx.date, closingDay);
       const existing = byInvoiceMonth.get(invoiceMonth) || [];
       existing.push(tx);
       byInvoiceMonth.set(invoiceMonth, existing);
@@ -104,7 +108,7 @@ export async function getConsolidatedInvoicesForMonth(
     
     // Find invoices whose due date falls in the target month
     for (const [invoiceMonth, transactions] of byInvoiceMonth) {
-      const dueDate = calculateDueDate(invoiceMonth, card.closingDay, card.dueDay);
+      const dueDate = calculateDueDate(invoiceMonth, closingDay, dueDay);
       const dueDateMonth = getLocalMonth(parseLocalDate(dueDate));
       
       if (dueDateMonth === targetMonth) {

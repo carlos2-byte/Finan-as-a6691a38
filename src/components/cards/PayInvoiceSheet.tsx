@@ -48,8 +48,10 @@ export function PayInvoiceSheet({
   const [sourceCardId, setSourceCardId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter out the card being paid from available source cards
-  const availableSourceCards = cards.filter(c => c.id !== cardId);
+  // Filter out the card being paid and cards that cannot pay other cards
+  const availableSourceCards = cards.filter(c => 
+    c.id !== cardId && c.canPayOtherCards !== false
+  );
 
   useEffect(() => {
     if (open) {

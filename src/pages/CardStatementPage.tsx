@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Trash2, DollarSign } from 'lucide-react';
+import { ChevronLeft, Trash2, DollarSign, Pencil } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,8 @@ import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransac
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
 import { PayInvoiceSheet } from '@/components/cards/PayInvoiceSheet';
-import { Transaction, saveTransaction, getCreditCardById, updateCreditCard } from '@/lib/storage';
+import { EditCardSheet } from '@/components/cards/EditCardSheet';
+import { Transaction, saveTransaction, getCreditCardById, updateCreditCard, CreditCard } from '@/lib/storage';
 import { calculateInvoiceMonth } from '@/lib/invoiceUtils';
 import {
   AlertDialog,
@@ -31,12 +32,13 @@ import {
 export default function CardStatementPage() {
   const { cardId } = useParams<{ cardId: string }>();
   const navigate = useNavigate();
-  const { cards, removeCard } = useCreditCards();
+  const { cards, removeCard, editCard, refresh: refreshCards } = useCreditCards();
   const { updateTransaction, removeTransaction } = useTransactions();
   
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [showDeleteCard, setShowDeleteCard] = useState(false);
   const [showPayInvoice, setShowPayInvoice] = useState(false);
+  const [showEditCard, setShowEditCard] = useState(false);
   
   // Transaction management states
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -66,6 +68,11 @@ export default function CardStatementPage() {
       setShowDeleteCard(false);
       navigate('/cards');
     }
+  };
+
+  const handleEditCard = async (updatedCard: CreditCard) => {
+    await editCard(updatedCard);
+    refreshCards();
   };
 
   // Transaction handlers
@@ -202,6 +209,13 @@ export default function CardStatementPage() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => setShowEditCard(true)}
+            >
+              <Pencil className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               className="text-destructive hover:text-destructive"
               onClick={() => setShowDeleteCard(true)}
             >
@@ -329,6 +343,14 @@ export default function CardStatementPage() {
         invoiceMonth={selectedMonth}
         cards={cards}
         onSubmit={handlePayInvoice}
+      />
+
+      {/* Edit Card Sheet */}
+      <EditCardSheet
+        open={showEditCard}
+        onOpenChange={setShowEditCard}
+        card={card}
+        onSubmit={handleEditCard}
       />
     </PageContainer>
   );

@@ -36,6 +36,7 @@ export interface CreditCard {
   color?: string;
   closingDay?: number; 
   dueDay?: number;
+  canPayOtherCards?: boolean; // If this card can be used to pay other cards' invoices
 }
 
 export interface AppSettings {
