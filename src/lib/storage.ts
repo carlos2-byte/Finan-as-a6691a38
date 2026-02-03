@@ -1,6 +1,6 @@
 import { defaultAdapter, StorageAdapter } from './storageAdapter';
 import { migrateSchemaOnce } from './migrations/migrateSchemaOnce';
-import { getMonthFromDate, getInvoiceMonth } from './dateUtils';
+import { getMonthFromDate, getInvoiceMonth, getLocalDateString } from './dateUtils';
 
 export type Maybe<T> = T | undefined;
 
@@ -123,8 +123,16 @@ export async function deleteCreditCard(id: string): Promise<void> {
 
 export async function getCardPurchases(cardId: string, month?: string): Promise<Transaction[]> {
   const txs = Object.values(await listTransactionObjects());
+  const today = getLocalDateString();
+  
   return txs.filter(tx => {
     if (tx.cardId !== cardId || !tx.isCardPayment) return false;
+    
+    // For card-to-card payments, only show when the due date has arrived
+    if (tx.isCardToCardPayment && tx.date > today) {
+      return false;
+    }
+    
     if (month && tx.invoiceMonth) {
       return tx.invoiceMonth === month;
     }
@@ -133,6 +141,7 @@ export async function getCardPurchases(cardId: string, month?: string): Promise<
 }
 
 export async function getCardMonthlyTotal(cardId: string, month: string): Promise<number> {
+  // getCardPurchases already filters out future card-to-card payments
   const purchases = await getCardPurchases(cardId, month);
   return purchases.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
 }
