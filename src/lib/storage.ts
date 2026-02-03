@@ -37,6 +37,7 @@ export interface CreditCard {
   closingDay?: number; 
   dueDay?: number;
   canPayOtherCards?: boolean; // If this card can be used to pay other cards' invoices
+  defaultPayerCardId?: string; // Which card pays this card's invoice by default
 }
 
 export interface AppSettings {

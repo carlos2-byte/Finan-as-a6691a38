@@ -129,6 +129,7 @@ export default function CardsPage() {
       <AddCardSheet
         open={showAddSheet}
         onOpenChange={setShowAddSheet}
+        cards={cards}
         onSubmit={createCard}
       />
     </PageContainer>
