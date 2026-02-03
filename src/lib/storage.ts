@@ -26,6 +26,10 @@ export interface Transaction {
   isCardToCardPayment?: boolean;
   sourceCardId?: string; // The card being used to pay
   targetCardId?: string; // The card being paid off
+  // Invoice payment tracking
+  isInvoicePayment?: boolean; // Marks transactions that are invoice payments
+  paidInvoiceCardId?: string; // The card whose invoice was paid
+  paidInvoiceMonth?: string; // The month of the paid invoice
 }
 
 export interface CreditCard {

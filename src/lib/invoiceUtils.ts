@@ -73,8 +73,24 @@ export function calculateDueDate(invoiceMonth: string, closingDay: number, dueDa
 }
 
 /**
+ * Check if an invoice has been paid (by cash, debit, or another card)
+ */
+export function isInvoicePaid(
+  cardId: string,
+  invoiceMonth: string,
+  allTransactions: Transaction[]
+): boolean {
+  return allTransactions.some(tx => 
+    tx.isInvoicePayment && 
+    tx.paidInvoiceCardId === cardId && 
+    tx.paidInvoiceMonth === invoiceMonth
+  );
+}
+
+/**
  * Get all consolidated invoices for a specific month
  * Returns invoices that have their due date in the specified month
+ * Excludes invoices that have been paid (they should not appear in the general statement)
  */
 export async function getConsolidatedInvoicesForMonth(
   targetMonth: string
@@ -89,9 +105,9 @@ export async function getConsolidatedInvoicesForMonth(
     const closingDay = card.closingDay || 25;
     const dueDay = card.dueDay || 5;
     
-    // Get all card transactions
+    // Get all card transactions (excluding card-to-card payment transactions)
     const cardTransactions = allTransactions.filter(
-      tx => tx.isCardPayment && tx.cardId === card.id && tx.type === 'expense'
+      tx => tx.isCardPayment && tx.cardId === card.id && tx.type === 'expense' && !tx.isCardToCardPayment
     );
     
     if (cardTransactions.length === 0) continue;
@@ -112,6 +128,11 @@ export async function getConsolidatedInvoicesForMonth(
       const dueDateMonth = getLocalMonth(parseLocalDate(dueDate));
       
       if (dueDateMonth === targetMonth) {
+        // Skip invoices that have been paid - they should not appear in the general statement
+        if (isInvoicePaid(card.id, invoiceMonth, allTransactions)) {
+          continue;
+        }
+        
         const total = transactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
         
         if (total > 0) {

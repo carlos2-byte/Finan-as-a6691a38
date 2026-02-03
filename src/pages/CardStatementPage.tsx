@@ -144,17 +144,24 @@ export default function CardStatementPage() {
   }) => {
     if (!card) return;
 
+    // Calculate the due date for the invoice being paid
+    const invoiceDueDate = card.closingDay && card.dueDay 
+      ? getInvoiceDueDate(selectedMonth, card.closingDay, card.dueDay)
+      : data.date;
+
     // If paying with another card, create the transaction on that card's invoice
     if (data.paymentSource === 'credit' && data.sourceCardId) {
       const sourceCard = await getCreditCardById(data.sourceCardId);
       if (sourceCard) {
-        const sourceInvoiceMonth = calculateInvoiceMonth(data.date, sourceCard.closingDay || 25);
+        // Use the due date of the card being paid to calculate which invoice month on source card
+        const sourceInvoiceMonth = calculateInvoiceMonth(invoiceDueDate, sourceCard.closingDay || 25);
         
         // Create expense on source card (this card is paying, so it incurs the debt)
+        // The transaction date is the due date of the paid card's invoice
         const paymentTx: Transaction = {
           id: generateId(),
           amount: -Math.abs(data.amount),
-          date: data.date,
+          date: invoiceDueDate, // Use the due date of the paid invoice
           description: `Pagamento fatura ${card.name}`,
           category: 'other',
           type: 'expense',
@@ -164,6 +171,10 @@ export default function CardStatementPage() {
           isCardToCardPayment: true,
           sourceCardId: data.sourceCardId,
           targetCardId: card.id,
+          // Mark as invoice payment for tracking
+          isInvoicePayment: true,
+          paidInvoiceCardId: card.id,
+          paidInvoiceMonth: selectedMonth,
         };
         await saveTransaction(paymentTx);
         
@@ -172,6 +183,21 @@ export default function CardStatementPage() {
           await updateCreditCard({ ...sourceCard, limit: sourceCard.limit - Math.abs(data.amount) });
         }
       }
+    } else {
+      // Paying with cash or debit - create a marker transaction to track the payment
+      const paymentMarkerTx: Transaction = {
+        id: generateId(),
+        amount: -Math.abs(data.amount),
+        date: data.date,
+        description: `Pagamento fatura ${card.name} (${data.paymentSource === 'cash' ? 'Dinheiro' : 'Débito'})`,
+        category: 'other',
+        type: 'expense',
+        // Mark as invoice payment for tracking (but not as card payment)
+        isInvoicePayment: true,
+        paidInvoiceCardId: card.id,
+        paidInvoiceMonth: selectedMonth,
+      };
+      await saveTransaction(paymentMarkerTx);
     }
     
     // Restore limit on the card being paid
