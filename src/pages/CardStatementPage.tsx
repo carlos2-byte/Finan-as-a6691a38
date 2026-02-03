@@ -350,6 +350,7 @@ export default function CardStatementPage() {
         open={showEditCard}
         onOpenChange={setShowEditCard}
         card={card}
+        cards={cards}
         onSubmit={handleEditCard}
       />
     </PageContainer>
