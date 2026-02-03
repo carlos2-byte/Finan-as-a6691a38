@@ -91,12 +91,7 @@ export function AddTransactionSheet({
     }
   }, [open, editingTransaction]);
 
-  // Calculate default end date for recurrence (1 year from now)
-  useEffect(() => {
-    if (isRecurring && !recurrenceEndDate) {
-      setRecurrenceEndDate(addYearsToDate(date, 1));
-    }
-  }, [isRecurring, date, recurrenceEndDate]);
+  // No longer auto-set end date for recurrence - it will be indefinite
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -259,15 +254,9 @@ export function AddTransactionSheet({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Até quando?</Label>
-                      <Input 
-                        type="date" 
-                        value={recurrenceEndDate} 
-                        onChange={e => setRecurrenceEndDate(e.target.value)}
-                        min={date}
-                      />
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      A transação será repetida automaticamente até você excluí-la.
+                    </p>
                   </div>
                 )}
 
