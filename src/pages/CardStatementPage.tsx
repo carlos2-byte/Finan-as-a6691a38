@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Trash2 } from 'lucide-react';
+import { ChevronLeft, Trash2, DollarSign } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCardDetails, useCreditCards } from '@/hooks/useCreditCards';
 import { useTransactions } from '@/hooks/useTransactions';
-import { formatCurrency, getCurrentMonth, formatMonthYear } from '@/lib/formatters';
-import { getInvoiceDueDate, formatDateBR } from '@/lib/dateUtils';
+import { formatCurrency, getCurrentMonth, formatMonthYear, generateId } from '@/lib/formatters';
+import { getInvoiceDueDate, formatDateBR, getInvoiceMonth } from '@/lib/dateUtils';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
-import { Transaction } from '@/lib/storage';
+import { PayInvoiceSheet } from '@/components/cards/PayInvoiceSheet';
+import { Transaction, saveTransaction, getCreditCardById, updateCreditCard } from '@/lib/storage';
+import { calculateInvoiceMonth } from '@/lib/invoiceUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +36,7 @@ export default function CardStatementPage() {
   
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [showDeleteCard, setShowDeleteCard] = useState(false);
+  const [showPayInvoice, setShowPayInvoice] = useState(false);
   
   // Transaction management states
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
@@ -125,6 +128,54 @@ export default function CardStatementPage() {
     }
   };
 
+  // Handle invoice payment (including card-to-card)
+  const handlePayInvoice = async (data: {
+    amount: number;
+    date: string;
+    paymentSource: 'cash' | 'debit' | 'credit';
+    sourceCardId?: string;
+  }) => {
+    if (!card) return;
+
+    // If paying with another card, create the transaction on that card's invoice
+    if (data.paymentSource === 'credit' && data.sourceCardId) {
+      const sourceCard = await getCreditCardById(data.sourceCardId);
+      if (sourceCard) {
+        const sourceInvoiceMonth = calculateInvoiceMonth(data.date, sourceCard.closingDay || 25);
+        
+        // Create expense on source card (this card is paying, so it incurs the debt)
+        const paymentTx: Transaction = {
+          id: generateId(),
+          amount: -Math.abs(data.amount),
+          date: data.date,
+          description: `Pagamento fatura ${card.name}`,
+          category: 'other',
+          type: 'expense',
+          isCardPayment: true,
+          cardId: data.sourceCardId,
+          invoiceMonth: sourceInvoiceMonth,
+          isCardToCardPayment: true,
+          sourceCardId: data.sourceCardId,
+          targetCardId: card.id,
+        };
+        await saveTransaction(paymentTx);
+        
+        // Update source card limit (consume limit)
+        if (sourceCard.limit) {
+          await updateCreditCard({ ...sourceCard, limit: sourceCard.limit - Math.abs(data.amount) });
+        }
+      }
+    }
+    
+    // Restore limit on the card being paid
+    if (card.limit) {
+      const newLimit = card.limit + Math.abs(data.amount);
+      await updateCreditCard({ ...card, limit: newLimit });
+    }
+    
+    refreshCard();
+  };
+
   if (!card) {
     return null;
   }
@@ -193,6 +244,18 @@ export default function CardStatementPage() {
             )}
           </div>
 
+          {/* Pay Invoice Button */}
+          {monthlyTotal > 0 && (
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={() => setShowPayInvoice(true)}
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              Pagar Fatura
+            </Button>
+          )}
+
           {/* Purchases */}
           <Card>
             <CardContent className="pt-4">
@@ -254,6 +317,18 @@ export default function CardStatementPage() {
         open={!!transactionToDelete}
         onOpenChange={(open) => !open && setTransactionToDelete(null)}
         onDelete={handleConfirmDelete}
+      />
+
+      {/* Pay Invoice Sheet */}
+      <PayInvoiceSheet
+        open={showPayInvoice}
+        onOpenChange={setShowPayInvoice}
+        invoiceTotal={monthlyTotal}
+        cardId={card.id}
+        cardName={card.name}
+        invoiceMonth={selectedMonth}
+        cards={cards}
+        onSubmit={handlePayInvoice}
       />
     </PageContainer>
   );

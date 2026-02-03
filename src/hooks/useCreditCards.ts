@@ -106,7 +106,10 @@ export function useCardDetails(cardId: string, month?: string) {
     loadDetails();
   }, [loadDetails]);
 
-  const availableLimit = card?.limit ? card.limit - monthlyTotal : 0;
+  // Calculate available limit based on total unpaid purchases across all months
+  // The card.limit already tracks available limit (it's consumed when purchases are made
+  // and restored when payments are made)
+  const availableLimit = card?.limit ?? 0;
 
   return {
     card,

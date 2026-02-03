@@ -22,6 +22,10 @@ export interface Transaction {
   recurrenceType?: 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: string;
   recurrenceId?: string; // Groups all recurring instances
+  // For card-to-card payments (paying one card with another)
+  isCardToCardPayment?: boolean;
+  sourceCardId?: string; // The card being used to pay
+  targetCardId?: string; // The card being paid off
 }
 
 export interface CreditCard {

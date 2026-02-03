@@ -25,6 +25,10 @@ interface AddTransactionOptions {
   isRecurring?: boolean;
   recurrenceType?: 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: string;
+  // For card-to-card payments
+  isCardToCardPayment?: boolean;
+  sourceCardId?: string;
+  targetCardId?: string;
 }
 
 export function useTransactions(month?: string) {
@@ -68,11 +72,20 @@ export function useTransactions(month?: string) {
         isRecurring = false,
         recurrenceType = 'monthly',
         recurrenceEndDate,
+        isCardToCardPayment = false,
+        sourceCardId,
+        targetCardId,
       } = options;
 
       // Get card info if it's a card payment
       let closingDay = 25;
       let card = null;
+      if (tx.isCardPayment && tx.cardId) {
+        card = await getCreditCardById(tx.cardId);
+        if (card?.closingDay) {
+          closingDay = card.closingDay;
+        }
+      }
       if (tx.isCardPayment && tx.cardId) {
         card = await getCreditCardById(tx.cardId);
         if (card?.closingDay) {
@@ -179,6 +192,10 @@ export function useTransactions(month?: string) {
           id: generateId(),
           amount: tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
           invoiceMonth,
+          // Card-to-card payment fields
+          isCardToCardPayment: isCardToCardPayment || undefined,
+          sourceCardId: isCardToCardPayment ? sourceCardId : undefined,
+          targetCardId: isCardToCardPayment ? targetCardId : undefined,
         };
         await saveTransaction(newTx);
         await consumeCardLimit(Math.abs(tx.amount));
