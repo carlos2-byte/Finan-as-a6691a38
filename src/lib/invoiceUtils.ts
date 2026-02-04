@@ -111,11 +111,18 @@ export async function getConsolidatedInvoicesForMonth(
     const closingDay = card.closingDay || 25;
     const dueDay = card.dueDay || 5;
     
-    // Get all card transactions for this card (including card-to-card payments)
-    // Card-to-card payments are regular expenses on the payer card
-    const cardTransactions = allTransactions.filter(
-      tx => tx.isCardPayment && tx.cardId === card.id && tx.type === 'expense'
-    );
+    // Get all card transactions for this card
+    // This includes:
+    // 1. Regular card purchases (isCardPayment && type === 'expense')
+    // 2. Card-to-card payments (isCardToCardPayment) - when THIS card pays another card's invoice
+    // Card-to-card payments are regular expenses on the payer card and MUST be included in the invoice total
+    const cardTransactions = allTransactions.filter(tx => {
+      // Must be a card payment for this card and an expense
+      if (!tx.isCardPayment || tx.cardId !== card.id || tx.type !== 'expense') {
+        return false;
+      }
+      return true;
+    });
     
     if (cardTransactions.length === 0) continue;
     
