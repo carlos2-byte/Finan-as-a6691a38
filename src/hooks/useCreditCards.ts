@@ -11,6 +11,7 @@ import {
   Transaction,
 } from '@/lib/storage';
 import { generateId, getCurrentMonth } from '@/lib/formatters';
+import { generateAutoCardPayments } from '@/lib/autoCardPayment';
 
 export function useCreditCards() {
   const [cards, setCards] = useState<CreditCard[]>([]);
@@ -46,6 +47,10 @@ export function useCreditCards() {
   const editCard = useCallback(
     async (card: CreditCard) => {
       await updateCreditCard(card);
+      // If card has a payer configured, regenerate auto-payments
+      if (card.defaultPayerCardId) {
+        await generateAutoCardPayments();
+      }
       await loadCards();
     },
     [loadCards]
