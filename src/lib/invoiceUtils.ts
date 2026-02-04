@@ -159,6 +159,7 @@ export async function getConsolidatedInvoicesForMonth(
  * Get transactions for the main statement view
  * - Excludes individual card transactions
  * - Excludes card-to-card payment transactions (they only appear in the payer card's statement)
+ * - Excludes invoice payment markers (cash/debit) - they only mark the invoice as paid
  * - Includes consolidated invoices as single entries on their due dates
  */
 export async function getStatementTransactions(
@@ -166,10 +167,16 @@ export async function getStatementTransactions(
 ): Promise<(Transaction | ConsolidatedInvoice)[]> {
   const allTransactions = await getAllTransactions();
   
-  // Filter out card transactions and card-to-card payments
+  // Filter out card transactions, card-to-card payments, and invoice payment markers
   const nonCardTransactions = allTransactions.filter(tx => {
     // Exclude card-to-card payment transactions from main statement
     if (tx.isCardToCardPayment) {
+      return false;
+    }
+    
+    // Exclude invoice payment markers (cash/debit payments that just mark invoice as paid)
+    // These should not appear in the general statement - they only track that the invoice was paid
+    if (tx.isInvoicePayment) {
       return false;
     }
     
@@ -202,6 +209,8 @@ export async function getStatementTransactions(
 
 /**
  * Calculate statement totals (excluding card transaction details, including invoice totals)
+ * Invoice payment markers are excluded from totals as they are already represented
+ * by the consolidated invoice entries
  */
 export async function getStatementTotals(
   targetMonth: string
