@@ -152,7 +152,8 @@ export default function CardStatementPage() {
     const targetDueDay = Number(card.dueDay ?? 5);
     const invoiceDueDate = getInvoiceDueDate(selectedMonth, targetClosingDay, targetDueDay);
 
-    // If paying with another card, create the transaction on that card's invoice
+    // If paying with another card, create a NORMAL expense on the payer card.
+    // Additionally, create an invisible marker transaction ONLY to mark the paid card invoice as paid.
     if (data.paymentSource === 'credit' && data.sourceCardId) {
       const sourceCard = await getCreditCardById(data.sourceCardId);
       if (sourceCard) {
@@ -160,13 +161,13 @@ export default function CardStatementPage() {
         const sourceClosingDay = Number(sourceCard.closingDay ?? 25);
         const sourceInvoiceMonth = calculateInvoiceMonth(invoiceDueDate, sourceClosingDay);
         
-        // Create expense on source card (this card is paying, so it incurs the debt)
-        // The transaction date is the due date of the paid card's invoice
-        const paymentTx: Transaction = {
+        // 1) Expense inside payer card (must behave like a regular purchase)
+        // The transaction date MUST be the due date of the paid card.
+        const payerExpenseTx: Transaction = {
           id: generateId(),
           amount: -Math.abs(data.amount),
           date: invoiceDueDate, // Use the due date of the paid invoice
-            description: `Pagamento da fatura do ${card.name} com ${sourceCard.name}`,
+          description: `Pagamento da fatura do Cartão ${card.name} com Cartão ${sourceCard.name}`,
           category: 'other',
           type: 'expense',
           isCardPayment: true,
@@ -175,12 +176,23 @@ export default function CardStatementPage() {
           isCardToCardPayment: true,
           sourceCardId: data.sourceCardId,
           targetCardId: card.id,
-          // Mark as invoice payment for tracking
+        };
+        await saveTransaction(payerExpenseTx);
+
+        // 2) Hidden marker to mark the target invoice as paid (must NOT appear in general statement)
+        // Use amount=0 to avoid double counting in monthly totals.
+        const invoicePaidMarkerTx: Transaction = {
+          id: generateId(),
+          amount: 0,
+          date: invoiceDueDate,
+          description: `Fatura do Cartão ${card.name} quitada (paga com Cartão ${sourceCard.name})`,
+          category: 'other',
+          type: 'expense',
           isInvoicePayment: true,
           paidInvoiceCardId: card.id,
           paidInvoiceMonth: selectedMonth,
         };
-        await saveTransaction(paymentTx);
+        await saveTransaction(invoicePaidMarkerTx);
         
         // Update source card limit (consume limit)
         if (typeof sourceCard.limit === 'number') {
