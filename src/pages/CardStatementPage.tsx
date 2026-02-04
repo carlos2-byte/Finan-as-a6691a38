@@ -166,7 +166,7 @@ export default function CardStatementPage() {
           id: generateId(),
           amount: -Math.abs(data.amount),
           date: invoiceDueDate, // Use the due date of the paid invoice
-          description: `Pagamento fatura ${card.name}`,
+            description: `Pagamento da fatura do ${card.name} com ${sourceCard.name}`,
           category: 'other',
           type: 'expense',
           isCardPayment: true,

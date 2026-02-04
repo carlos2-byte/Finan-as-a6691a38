@@ -101,6 +101,12 @@ export async function getConsolidatedInvoicesForMonth(
   const invoices: ConsolidatedInvoice[] = [];
   
   for (const card of cards) {
+    // If this card is configured to be paid with another card, its invoice must NOT appear
+    // in the general statement. It should exist exclusively as an expense inside the payer card.
+    if (card.defaultPayerCardId) {
+      continue;
+    }
+
     // Use default values if not set
     const closingDay = card.closingDay || 25;
     const dueDay = card.dueDay || 5;
