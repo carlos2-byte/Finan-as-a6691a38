@@ -48,6 +48,9 @@ export function EditTransactionDialog({
               ? 'Esta é uma transação recorrente. O que deseja editar?'
               : `Esta é a parcela ${transaction.currentInstallment}/${transaction.installments}. O que deseja editar?`
             }
+            <span className="block mt-2 text-xs text-muted-foreground">
+              Nota: lançamentos passados são preservados automaticamente.
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         
@@ -70,7 +73,7 @@ export function EditTransactionDialog({
             }}
             className="justify-start"
           >
-            Editar esta e as próximas
+            Editar esta e as futuras
           </Button>
           <Button
             variant="default"
@@ -80,7 +83,7 @@ export function EditTransactionDialog({
             }}
             className="justify-start"
           >
-            Editar todas {isRecurring ? 'as recorrências' : 'as parcelas'}
+            Editar todas as futuras {isRecurring ? 'recorrências' : 'parcelas'}
           </Button>
         </div>
 
