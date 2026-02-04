@@ -18,6 +18,7 @@ import {
 import { generateId, getCurrentMonth } from '@/lib/formatters';
 import { addMonthsToDate, addWeeksToDate, addYearsToDate, getLocalDateString } from '@/lib/dateUtils';
 import { calculateInvoiceMonth } from '@/lib/invoiceUtils';
+import { generateAutoCardPayments } from '@/lib/autoCardPayment';
 
 interface AddTransactionOptions {
   installments?: number;
@@ -204,6 +205,9 @@ export function useTransactions(month?: string) {
         await consumeCardLimit(Math.abs(tx.amount));
       }
 
+      // Generate auto-payments for cards configured with defaultPayerCardId
+      await generateAutoCardPayments();
+
       await loadTransactions();
     },
     [loadTransactions]
@@ -265,6 +269,9 @@ export function useTransactions(month?: string) {
           await saveTransaction({ ...relatedTx, ...updates });
         }
       }
+
+      // Regenerate auto-payments after updates
+      await generateAutoCardPayments();
 
       await loadTransactions();
     },
@@ -349,6 +356,9 @@ export function useTransactions(month?: string) {
           await deleteTransaction(t.id);
         }
       }
+
+      // Regenerate auto-payments after deletions
+      await generateAutoCardPayments();
       
       await loadTransactions();
     },

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LockScreen } from "@/components/security/LockScreen";
 import { useAppLock } from "@/hooks/useAppLock";
+import { generateAutoCardPayments } from "@/lib/autoCardPayment";
 import HomePage from "./pages/HomePage";
 import DashboardPage from "./pages/DashboardPage";
 import CardsPage from "./pages/CardsPage";
@@ -33,6 +34,11 @@ function AppContent() {
       // If hasPassword is true, unlocked stays false until user unlocks
     }
   }, [hasPassword, loading, initialCheckDone]);
+
+  // Generate auto-payments for cards with defaultPayerCardId on app init
+  useEffect(() => {
+    generateAutoCardPayments();
+  }, []);
 
   if (loading) {
     return (
