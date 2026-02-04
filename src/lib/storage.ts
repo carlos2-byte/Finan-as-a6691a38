@@ -287,21 +287,42 @@ export async function getMonthsWithTransactions(): Promise<string[]> {
   return Array.from(months).sort();
 }
 
+// Keys for investments (used in export/import)
+const INVESTMENTS_KEY = 'investments';
+const DEFAULT_YIELD_KEY = 'default_yield_rate';
+const YIELD_HISTORY_KEY = 'yield_history';
+const LAST_YIELD_PROCESS_KEY = 'last_yield_process_date';
+
 // Export/Import
-export async function exportAllData(): Promise<string> {
+export async function exportAllData(includeInvestments: boolean = true): Promise<string> {
   const [transactions, cards, settings] = await Promise.all([
     listTransactionObjects(),
     getCreditCards(),
     getSettings(),
   ]);
   
-  const data = {
+  const data: Record<string, unknown> = {
     version: 2,
     exportedAt: new Date().toISOString(),
     transactions,
     creditCards: cards,
     settings,
+    includesInvestments: includeInvestments,
   };
+  
+  if (includeInvestments) {
+    const [investments, yieldHistory, defaultYieldRate, lastYieldProcess] = await Promise.all([
+      defaultAdapter.getItem(INVESTMENTS_KEY, {}),
+      defaultAdapter.getItem(YIELD_HISTORY_KEY, []),
+      defaultAdapter.getItem(DEFAULT_YIELD_KEY, 6.5),
+      defaultAdapter.getItem(LAST_YIELD_PROCESS_KEY, null),
+    ]);
+    
+    data.investments = investments;
+    data.yieldHistory = yieldHistory;
+    data.defaultYieldRate = defaultYieldRate;
+    data.lastYieldProcessDate = lastYieldProcess;
+  }
   
   return JSON.stringify(data, null, 2);
 }
@@ -317,6 +338,20 @@ export async function importAllData(jsonString: string): Promise<void> {
   }
   if (data.settings) {
     await defaultAdapter.setItem(SETTINGS_KEY, data.settings);
+  }
+  
+  // Import investments if present in backup
+  if (data.investments !== undefined) {
+    await defaultAdapter.setItem(INVESTMENTS_KEY, data.investments);
+  }
+  if (data.yieldHistory !== undefined) {
+    await defaultAdapter.setItem(YIELD_HISTORY_KEY, data.yieldHistory);
+  }
+  if (data.defaultYieldRate !== undefined) {
+    await defaultAdapter.setItem(DEFAULT_YIELD_KEY, data.defaultYieldRate);
+  }
+  if (data.lastYieldProcessDate !== undefined) {
+    await defaultAdapter.setItem(LAST_YIELD_PROCESS_KEY, data.lastYieldProcessDate);
   }
 }
 

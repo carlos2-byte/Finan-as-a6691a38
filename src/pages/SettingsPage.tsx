@@ -29,6 +29,7 @@ import { exportAllData, importAllData, clearAllData } from '@/lib/storage';
 import { isPasswordEnabled, removePassword } from '@/lib/security';
 import { toast } from '@/hooks/use-toast';
 import { PasswordSetupSheet } from '@/components/security/PasswordSetupSheet';
+import { ExportBackupDialog } from '@/components/settings/ExportBackupDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,16 +55,17 @@ export default function SettingsPage() {
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
   const [showRemovePassword, setShowRemovePassword] = useState(false);
   const [showClearData, setShowClearData] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     isPasswordEnabled().then(setHasPassword);
   }, []);
 
-  const handleExport = async () => {
+  const handleExport = async (includeInvestments: boolean) => {
     setIsExporting(true);
     try {
-      const data = await exportAllData();
+      const data = await exportAllData(includeInvestments);
       const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -73,7 +75,10 @@ export default function SettingsPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast({ title: 'Backup exportado com sucesso!' });
+      const message = includeInvestments 
+        ? 'Backup exportado com investimentos!' 
+        : 'Backup exportado sem investimentos!';
+      toast({ title: message });
     } catch (error) {
       toast({ title: 'Erro ao exportar', variant: 'destructive' });
     } finally {
@@ -258,7 +263,7 @@ export default function SettingsPage() {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={handleExport}
+                onClick={() => setShowExportDialog(true)}
                 disabled={isExporting}
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -306,6 +311,13 @@ export default function SettingsPage() {
         open={showPasswordSetup}
         onOpenChange={setShowPasswordSetup}
         onComplete={() => setHasPassword(true)}
+      />
+
+      {/* Export Backup Dialog */}
+      <ExportBackupDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        onConfirm={handleExport}
       />
 
       {/* Remove Password Confirmation */}
