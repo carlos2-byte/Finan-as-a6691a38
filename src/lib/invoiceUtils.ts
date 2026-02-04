@@ -111,9 +111,10 @@ export async function getConsolidatedInvoicesForMonth(
     const closingDay = card.closingDay || 25;
     const dueDay = card.dueDay || 5;
     
-    // Get all card transactions (excluding card-to-card payment transactions)
+    // Get all card transactions for this card (including card-to-card payments)
+    // Card-to-card payments are regular expenses on the payer card
     const cardTransactions = allTransactions.filter(
-      tx => tx.isCardPayment && tx.cardId === card.id && tx.type === 'expense' && !tx.isCardToCardPayment
+      tx => tx.isCardPayment && tx.cardId === card.id && tx.type === 'expense'
     );
     
     if (cardTransactions.length === 0) continue;
@@ -163,8 +164,8 @@ export async function getConsolidatedInvoicesForMonth(
 
 /**
  * Get transactions for the main statement view
- * - Excludes individual card transactions
- * - Excludes card-to-card payment transactions (they only appear in the payer card's statement)
+ * - Excludes individual card transactions (they are consolidated into invoices)
+ * - Includes card-to-card payment transactions as regular expenses (they belong to the payer card's statement)
  * - Excludes invoice payment markers (cash/debit) - they only mark the invoice as paid
  * - Includes consolidated invoices as single entries on their due dates
  */
@@ -173,20 +174,22 @@ export async function getStatementTransactions(
 ): Promise<(Transaction | ConsolidatedInvoice)[]> {
   const allTransactions = await getAllTransactions();
   
-  // Filter out card transactions, card-to-card payments, and invoice payment markers
+  // Filter transactions for the main statement
   const nonCardTransactions = allTransactions.filter(tx => {
-    // Exclude card-to-card payment transactions from main statement
-    if (tx.isCardToCardPayment) {
-      return false;
-    }
-    
     // Exclude invoice payment markers (cash/debit payments that just mark invoice as paid)
     // These should not appear in the general statement - they only track that the invoice was paid
     if (tx.isInvoicePayment) {
       return false;
     }
     
-    // Include if not a card payment
+    // Card-to-card payment transactions ARE regular card payments and will be included
+    // in the consolidated invoice of the payer card. Don't include them separately here
+    // to avoid duplication - they'll show up via the payer card's invoice.
+    if (tx.isCardToCardPayment) {
+      return false;
+    }
+    
+    // Include if not a card payment (regular income/expense)
     if (!tx.isCardPayment) {
       // Check if transaction date is in target month
       const txMonth = getLocalMonth(parseLocalDate(tx.date));
