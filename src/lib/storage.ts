@@ -123,15 +123,9 @@ export async function deleteCreditCard(id: string): Promise<void> {
 
 export async function getCardPurchases(cardId: string, month?: string): Promise<Transaction[]> {
   const txs = Object.values(await listTransactionObjects());
-  const today = getLocalDateString();
   
   return txs.filter(tx => {
     if (tx.cardId !== cardId || !tx.isCardPayment) return false;
-    
-    // For card-to-card payments, only show when the due date has arrived
-    if (tx.isCardToCardPayment && tx.date > today) {
-      return false;
-    }
     
     if (month && tx.invoiceMonth) {
       return tx.invoiceMonth === month;
