@@ -49,6 +49,12 @@ function getDisplayDate(
   transaction: Transaction,
   card: { closingDay?: number; dueDay?: number } | null
 ): string {
+  // Card-to-card invoice payments must be shown on the target card's due date
+  // (the transaction.date we store), not on the payer card's own invoice due date.
+  if (transaction.isCardToCardPayment) {
+    return transaction.date;
+  }
+
   if (transaction.isCardPayment && transaction.invoiceMonth && card?.closingDay && card?.dueDay) {
     return getInvoiceDueDate(transaction.invoiceMonth, card.closingDay, card.dueDay);
   }
