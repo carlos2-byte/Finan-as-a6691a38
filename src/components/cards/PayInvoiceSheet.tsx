@@ -116,10 +116,18 @@ export function PayInvoiceSheet({
           </div>
 
           {/* Date */}
-          <div className="space-y-2">
-            <Label>Data do Pagamento</Label>
-            <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-          </div>
+          {paymentSource !== 'credit' ? (
+            <div className="space-y-2">
+              <Label>Data do Pagamento</Label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+            </div>
+          ) : (
+            <div className="p-3 bg-muted/30 rounded-lg">
+              <p className="text-xs text-muted-foreground">
+                Ao pagar com outro cartão, o lançamento será registrado na data de vencimento da fatura do cartão pago.
+              </p>
+            </div>
+          )}
 
           {/* Payment Source */}
           <div className="space-y-2">
@@ -171,7 +179,7 @@ export function PayInvoiceSheet({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                O valor será adicionado à fatura deste cartão
+                O valor será lançado como despesa no cartão selecionado
               </p>
             </div>
           )}
