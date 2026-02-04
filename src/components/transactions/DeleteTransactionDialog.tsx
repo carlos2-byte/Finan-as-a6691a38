@@ -74,6 +74,9 @@ export function DeleteTransactionDialog({
               ? 'Esta é uma transação recorrente. O que deseja fazer?'
               : `Esta é a parcela ${transaction.currentInstallment}/${transaction.installments}. O que deseja fazer?`
             }
+            <span className="block mt-2 text-xs text-muted-foreground">
+              Nota: lançamentos passados são preservados automaticamente.
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         
@@ -90,14 +93,14 @@ export function DeleteTransactionDialog({
             onClick={() => handleDelete('fromThis')}
             className="justify-start"
           >
-            Excluir esta e as próximas
+            Excluir esta e as futuras
           </Button>
           <Button
             variant="destructive"
             onClick={() => handleDelete('all')}
             className="justify-start"
           >
-            Excluir todas {isRecurring ? 'as recorrências' : 'as parcelas'}
+            Excluir todas as futuras {isRecurring ? 'recorrências' : 'parcelas'}
           </Button>
         </div>
 

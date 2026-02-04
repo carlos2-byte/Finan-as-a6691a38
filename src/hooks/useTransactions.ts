@@ -218,18 +218,24 @@ export function useTransactions(month?: string) {
       const tx = transactions.find(t => t.id === id);
       if (!tx) return;
 
+      // REGRA GLOBAL: alterações nunca afetam o passado
+      // Usamos a data de hoje como limite mínimo
+      const today = getLocalDateString();
+
       if (updateType === 'single') {
         await saveTransaction({ ...tx, ...updates });
       } else if (updateType === 'fromThis') {
-        // Update this and all future installments/recurrences
+        // Update this and all future installments/recurrences (>= today)
         const allTxs = await getAllTransactions();
+        const fromDate = tx.date >= today ? tx.date : today;
+        
         const relatedTxs = allTxs.filter(t => {
           if (tx.recurrenceId) {
-            return t.recurrenceId === tx.recurrenceId && t.date >= tx.date;
+            return t.recurrenceId === tx.recurrenceId && t.date >= fromDate;
           }
           if (tx.parentId || tx.installments) {
             const parentId = tx.parentId || tx.id;
-            return (t.id === parentId || t.parentId === parentId) && t.date >= tx.date;
+            return (t.id === parentId || t.parentId === parentId) && t.date >= fromDate;
           }
           return t.id === tx.id;
         });
@@ -238,17 +244,21 @@ export function useTransactions(month?: string) {
           await saveTransaction({ ...relatedTx, ...updates });
         }
       } else if (updateType === 'all') {
-        // Update all related transactions
+        // Update all related transactions (ONLY >= today, preserve past)
         const allTxs = await getAllTransactions();
         const relatedTxs = allTxs.filter(t => {
+          // First check if it's related
+          let isRelated = false;
           if (tx.recurrenceId) {
-            return t.recurrenceId === tx.recurrenceId;
-          }
-          if (tx.parentId || tx.installments) {
+            isRelated = t.recurrenceId === tx.recurrenceId;
+          } else if (tx.parentId || tx.installments) {
             const parentId = tx.parentId || tx.id;
-            return t.id === parentId || t.parentId === parentId;
+            isRelated = t.id === parentId || t.parentId === parentId;
+          } else {
+            isRelated = t.id === tx.id;
           }
-          return t.id === tx.id;
+          // Then only include if date >= today (preserve past)
+          return isRelated && t.date >= today;
         });
 
         for (const relatedTx of relatedTxs) {
@@ -269,6 +279,9 @@ export function useTransactions(month?: string) {
       const tx = transactions.find(t => t.id === id);
       if (!tx) return;
 
+      // REGRA GLOBAL: exclusões nunca afetam o passado
+      const today = getLocalDateString();
+
       // Helper function to restore card limit for a transaction
       const restoreCardLimit = async (transaction: Transaction) => {
         if (transaction.isCardPayment && transaction.cardId) {
@@ -284,17 +297,19 @@ export function useTransactions(month?: string) {
         await restoreCardLimit(tx);
         await deleteTransaction(id);
       } else if (deleteType === 'fromThis') {
-        // Delete this and all future
+        // Delete this and all future (>= today)
         const allTxs = await getAllTransactions();
+        const fromDate = tx.date >= today ? tx.date : today;
+        
         const toDelete = allTxs.filter(t => {
           if (tx.recurrenceId) {
-            return t.recurrenceId === tx.recurrenceId && t.date >= tx.date;
+            return t.recurrenceId === tx.recurrenceId && t.date >= fromDate;
           }
           if (tx.parentId || (tx.installments && tx.installments > 1)) {
             const parentId = tx.parentId || tx.id;
-            return (t.id === parentId || t.parentId === parentId) && t.date >= tx.date;
+            return (t.id === parentId || t.parentId === parentId) && t.date >= fromDate;
           }
-          return t.id === tx.id;
+          return t.id === tx.id && t.date >= fromDate;
         });
         
         // Restore limits for all transactions being deleted
@@ -302,27 +317,26 @@ export function useTransactions(month?: string) {
           await restoreCardLimit(t);
         }
         
-        if (tx.recurrenceId) {
-          await deleteTransactionsFromDate(tx.recurrenceId, tx.date, true);
-        } else if (tx.parentId) {
-          await deleteTransactionsFromDate(tx.parentId, tx.date, false);
-        } else if (tx.installments && tx.installments > 1) {
-          await deleteTransactionsFromDate(tx.id, tx.date, false);
-        } else {
-          await deleteTransaction(id);
+        // Delete individually to respect the date filter
+        for (const t of toDelete) {
+          await deleteTransaction(t.id);
         }
       } else if (deleteType === 'all') {
-        // Delete all related
+        // Delete all related (ONLY >= today, preserve past)
         const allTxs = await getAllTransactions();
         const toDelete = allTxs.filter(t => {
+          // First check if it's related
+          let isRelated = false;
           if (tx.recurrenceId) {
-            return t.recurrenceId === tx.recurrenceId;
-          }
-          if (tx.parentId || (tx.installments && tx.installments > 1)) {
+            isRelated = t.recurrenceId === tx.recurrenceId;
+          } else if (tx.parentId || (tx.installments && tx.installments > 1)) {
             const parentId = tx.parentId || tx.id;
-            return t.id === parentId || t.parentId === parentId;
+            isRelated = t.id === parentId || t.parentId === parentId;
+          } else {
+            isRelated = t.id === tx.id;
           }
-          return t.id === tx.id;
+          // Then only include if date >= today (preserve past)
+          return isRelated && t.date >= today;
         });
         
         // Restore limits for all transactions being deleted
@@ -330,14 +344,9 @@ export function useTransactions(month?: string) {
           await restoreCardLimit(t);
         }
         
-        if (tx.recurrenceId) {
-          await deleteTransactionsByRecurrenceId(tx.recurrenceId);
-        } else if (tx.parentId) {
-          await deleteTransactionsByParentId(tx.parentId);
-        } else if (tx.installments && tx.installments > 1) {
-          await deleteTransactionsByParentId(tx.id);
-        } else {
-          await deleteTransaction(id);
+        // Delete individually to respect the date filter
+        for (const t of toDelete) {
+          await deleteTransaction(t.id);
         }
       }
       
