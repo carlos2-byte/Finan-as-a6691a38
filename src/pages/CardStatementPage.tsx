@@ -1,23 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Trash2, DollarSign, Pencil } from 'lucide-react';
+import { ChevronLeft, Trash2, Pencil } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCardDetails, useCreditCards } from '@/hooks/useCreditCards';
 import { useTransactions } from '@/hooks/useTransactions';
-import { formatCurrency, getCurrentMonth, formatMonthYear, generateId } from '@/lib/formatters';
-import { getInvoiceDueDate, formatDateBR, getInvoiceMonth } from '@/lib/dateUtils';
+import { formatCurrency, getCurrentMonth, formatMonthYear } from '@/lib/formatters';
+import { getInvoiceDueDate, formatDateBR } from '@/lib/dateUtils';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
-import { PayInvoiceSheet } from '@/components/cards/PayInvoiceSheet';
 import { EditCardSheet } from '@/components/cards/EditCardSheet';
-import { Transaction, saveTransaction, getCreditCardById, updateCreditCard, CreditCard } from '@/lib/storage';
-import { calculateInvoiceMonth } from '@/lib/invoiceUtils';
+import { CreditCard, Transaction } from '@/lib/storage';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +35,6 @@ export default function CardStatementPage() {
   
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [showDeleteCard, setShowDeleteCard] = useState(false);
-  const [showPayInvoice, setShowPayInvoice] = useState(false);
   const [showEditCard, setShowEditCard] = useState(false);
   
   // Transaction management states
@@ -135,96 +132,6 @@ export default function CardStatementPage() {
     }
   };
 
-  // Handle invoice payment (including card-to-card)
-  const handlePayInvoice = async (data: {
-    amount: number;
-    date: string;
-    paymentSource: 'cash' | 'debit' | 'credit';
-    sourceCardId?: string;
-  }) => {
-    if (!card) return;
-
-    // Calculate the due date for the invoice being paid.
-    // IMPORTANT: Always compute from the card config (with safe defaults) so that
-    // card-to-card payments are scheduled on the target card's due date (not on the
-    // day the user performed the payment).
-    const targetClosingDay = Number(card.closingDay ?? 25);
-    const targetDueDay = Number(card.dueDay ?? 5);
-    const invoiceDueDate = getInvoiceDueDate(selectedMonth, targetClosingDay, targetDueDay);
-
-    // If paying with another card, create a NORMAL expense on the payer card.
-    // Additionally, create an invisible marker transaction ONLY to mark the paid card invoice as paid.
-    if (data.paymentSource === 'credit' && data.sourceCardId) {
-      const sourceCard = await getCreditCardById(data.sourceCardId);
-      if (sourceCard) {
-        // Use the due date of the card being paid to calculate which invoice month on source card
-        const sourceClosingDay = Number(sourceCard.closingDay ?? 25);
-        const sourceInvoiceMonth = calculateInvoiceMonth(invoiceDueDate, sourceClosingDay);
-        
-        // 1) Expense inside payer card (must behave like a regular purchase)
-        // The transaction date MUST be the due date of the paid card.
-        const payerExpenseTx: Transaction = {
-          id: generateId(),
-          amount: -Math.abs(data.amount),
-          date: invoiceDueDate, // Use the due date of the paid invoice
-          description: `Pagamento da fatura do Cartão ${card.name} com Cartão ${sourceCard.name}`,
-          category: 'other',
-          type: 'expense',
-          isCardPayment: true,
-          cardId: data.sourceCardId,
-          invoiceMonth: sourceInvoiceMonth,
-          isCardToCardPayment: true,
-          sourceCardId: data.sourceCardId,
-          targetCardId: card.id,
-        };
-        await saveTransaction(payerExpenseTx);
-
-        // 2) Hidden marker to mark the target invoice as paid (must NOT appear in general statement)
-        // Use amount=0 to avoid double counting in monthly totals.
-        const invoicePaidMarkerTx: Transaction = {
-          id: generateId(),
-          amount: 0,
-          date: invoiceDueDate,
-          description: `Fatura do Cartão ${card.name} quitada (paga com Cartão ${sourceCard.name})`,
-          category: 'other',
-          type: 'expense',
-          isInvoicePayment: true,
-          paidInvoiceCardId: card.id,
-          paidInvoiceMonth: selectedMonth,
-        };
-        await saveTransaction(invoicePaidMarkerTx);
-        
-        // Update source card limit (consume limit)
-        if (typeof sourceCard.limit === 'number') {
-          await updateCreditCard({ ...sourceCard, limit: sourceCard.limit - Math.abs(data.amount) });
-        }
-      }
-    } else {
-      // Paying with cash or debit - create a marker transaction to track the payment
-      const paymentMarkerTx: Transaction = {
-        id: generateId(),
-        amount: -Math.abs(data.amount),
-        date: data.date,
-        description: `Pagamento fatura ${card.name} (${data.paymentSource === 'cash' ? 'Dinheiro' : 'Débito'})`,
-        category: 'other',
-        type: 'expense',
-        // Mark as invoice payment for tracking (but not as card payment)
-        isInvoicePayment: true,
-        paidInvoiceCardId: card.id,
-        paidInvoiceMonth: selectedMonth,
-      };
-      await saveTransaction(paymentMarkerTx);
-    }
-    
-    // Restore limit on the card being paid
-    if (typeof card.limit === 'number') {
-      const newLimit = card.limit + Math.abs(data.amount);
-      await updateCreditCard({ ...card, limit: newLimit });
-    }
-    
-    refreshCard();
-  };
-
   if (!card) {
     return null;
   }
@@ -300,17 +207,6 @@ export default function CardStatementPage() {
             )}
           </div>
 
-          {/* Pay Invoice Button */}
-          {monthlyTotal > 0 && (
-            <Button
-              className="w-full"
-              variant="outline"
-              onClick={() => setShowPayInvoice(true)}
-            >
-              <DollarSign className="h-4 w-4 mr-2" />
-              Pagar Fatura
-            </Button>
-          )}
 
           {/* Purchases */}
           <Card>
@@ -375,17 +271,6 @@ export default function CardStatementPage() {
         onDelete={handleConfirmDelete}
       />
 
-      {/* Pay Invoice Sheet */}
-      <PayInvoiceSheet
-        open={showPayInvoice}
-        onOpenChange={setShowPayInvoice}
-        invoiceTotal={monthlyTotal}
-        cardId={card.id}
-        cardName={card.name}
-        invoiceMonth={selectedMonth}
-        cards={cards}
-        onSubmit={handlePayInvoice}
-      />
 
       {/* Edit Card Sheet */}
       <EditCardSheet
