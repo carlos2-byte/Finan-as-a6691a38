@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { BalanceCard } from '@/components/home/BalanceCard';
 import { CoverageAlert } from '@/components/home/CoverageAlert';
+import { TransferAlert } from '@/components/home/TransferAlert';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { StatementList } from '@/components/transactions/StatementList';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
@@ -13,12 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useStatement, isConsolidatedInvoice } from '@/hooks/useStatement';
-import { useTransactions } from '@/hooks/useTransactions';
+import { useTransactions, TransferResult } from '@/hooks/useTransactions';
 import { useCreditCards } from '@/hooks/useCreditCards';
 import { useInvestments } from '@/hooks/useInvestments';
 import { getCurrentMonth } from '@/lib/formatters';
 import { Transaction } from '@/lib/storage';
 import { ConsolidatedInvoice } from '@/lib/invoiceUtils';
+import { checkAndRecordMonthEndBalance } from '@/lib/balanceTransfer';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -31,8 +33,9 @@ export default function HomePage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [pendingEditType, setPendingEditType] = useState<'single' | 'fromThis' | 'all'>('single');
   
-  // Coverage alert state
+  // Alert states
   const [coverageInfo, setCoverageInfo] = useState<{ amount: number; investmentName: string } | null>(null);
+  const [transferInfo, setTransferInfo] = useState<{ amount: number; investmentName: string } | null>(null);
 
   // Use the new statement hook for display
   const { items, loading, totals, balance, refresh: refreshStatement } = useStatement(month);
@@ -41,6 +44,14 @@ export default function HomePage() {
   const { addTransaction, updateTransaction, removeTransaction } = useTransactions(month);
   const { cards } = useCreditCards();
   const { useCoverage, refresh: refreshInvestments } = useInvestments();
+
+  // Check and record month-end balance when viewing past months
+  useEffect(() => {
+    const checkMonthEnd = async () => {
+      await checkAndRecordMonthEndBalance(month);
+    };
+    checkMonthEnd();
+  }, [month]);
 
   // Check for negative balance and auto-cover with investments
   useEffect(() => {
@@ -152,8 +163,18 @@ export default function HomePage() {
       setPendingEditType('single');
       refreshStatement();
     } else {
-      // New transaction
-      await addTransaction(tx, options);
+      // New transaction - check for automatic transfer
+      const transferResult = await addTransaction(tx, options);
+      
+      // Show transfer alert if transfer happened
+      if (transferResult && transferResult.transferred && transferResult.amount && transferResult.investmentName) {
+        setTransferInfo({
+          amount: transferResult.amount,
+          investmentName: transferResult.investmentName,
+        });
+        refreshInvestments();
+      }
+      
       refreshStatement();
     }
   };
@@ -207,6 +228,15 @@ export default function HomePage() {
             amount={coverageInfo.amount}
             investmentName={coverageInfo.investmentName}
             onDismiss={() => setCoverageInfo(null)}
+          />
+        )}
+
+        {/* Transfer Alert */}
+        {transferInfo && (
+          <TransferAlert
+            amount={transferInfo.amount}
+            investmentName={transferInfo.investmentName}
+            onDismiss={() => setTransferInfo(null)}
           />
         )}
 

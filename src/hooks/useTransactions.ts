@@ -19,6 +19,13 @@ import { generateId, getCurrentMonth } from '@/lib/formatters';
 import { addMonthsToDate, addWeeksToDate, addYearsToDate, getLocalDateString } from '@/lib/dateUtils';
 import { calculateInvoiceMonth } from '@/lib/invoiceUtils';
 import { generateAutoCardPayments } from '@/lib/autoCardPayment';
+import { processIncomeTransfer, initializeMonthEndCheck } from '@/lib/balanceTransfer';
+
+export interface TransferResult {
+  transferred: boolean;
+  amount?: number;
+  investmentName?: string;
+}
 
 interface AddTransactionOptions {
   installments?: number;
@@ -43,6 +50,9 @@ export function useTransactions(month?: string) {
   const loadTransactions = useCallback(async () => {
     setLoading(true);
     try {
+      // Initialize month-end check for balance transfers
+      await initializeMonthEndCheck();
+      
       const txs = month
         ? await getTransactionsByMonth(month)
         : await getAllTransactions();
@@ -66,7 +76,7 @@ export function useTransactions(month?: string) {
     async (
       tx: Omit<Transaction, 'id' | 'createdAt'>,
       options: AddTransactionOptions = {}
-    ) => {
+    ): Promise<TransferResult | null> => {
       const { 
         installments = 1, 
         isInstallmentTotal = true,
@@ -87,12 +97,6 @@ export function useTransactions(month?: string) {
           closingDay = card.closingDay;
         }
       }
-      if (tx.isCardPayment && tx.cardId) {
-        card = await getCreditCardById(tx.cardId);
-        if (card?.closingDay) {
-          closingDay = card.closingDay;
-        }
-      }
 
       // Helper to consume card limit
       const consumeCardLimit = async (amount: number) => {
@@ -102,6 +106,8 @@ export function useTransactions(month?: string) {
           card.limit = newLimit; // Update local reference for subsequent calls
         }
       };
+
+      let savedTransaction: Transaction | null = null;
 
       // Handle recurring transactions (indefinite - generate 5 years ahead)
       if (isRecurring) {
@@ -119,7 +125,7 @@ export function useTransactions(month?: string) {
             invoiceMonth = calculateInvoiceMonth(currentDate, closingDay);
           }
 
-          recurringTransactions.push({
+          const newTx: Transaction = {
             ...tx,
             id: generateId(),
             amount: tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
@@ -128,7 +134,14 @@ export function useTransactions(month?: string) {
             recurrenceType,
             recurrenceId,
             invoiceMonth,
-          });
+          };
+          
+          recurringTransactions.push(newTx);
+          
+          // Keep reference to first transaction if it's income
+          if (!savedTransaction && tx.type === 'income') {
+            savedTransaction = newTx;
+          }
           
           totalAmount += Math.abs(tx.amount);
 
@@ -203,12 +216,25 @@ export function useTransactions(month?: string) {
         };
         await saveTransaction(newTx);
         await consumeCardLimit(Math.abs(tx.amount));
+        
+        savedTransaction = newTx;
       }
 
       // Generate auto-payments for cards configured with defaultPayerCardId
       await generateAutoCardPayments();
 
+      // Check if this income triggers a balance transfer from previous month
+      let transferResult: TransferResult | null = null;
+      if (savedTransaction && savedTransaction.type === 'income') {
+        const result = await processIncomeTransfer(savedTransaction);
+        if (result && result.transferred) {
+          transferResult = result;
+        }
+      }
+
       await loadTransactions();
+      
+      return transferResult;
     },
     [loadTransactions]
   );
