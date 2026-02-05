@@ -1,6 +1,6 @@
 import { formatCurrency } from '@/lib/formatters';
 import { Card, CardContent } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Calendar, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BalanceCardProps {
@@ -8,23 +8,56 @@ interface BalanceCardProps {
   income: number;
   expense: number;
   loading?: boolean;
+  projectedBalance?: number;
+  dailyYield?: number;
+  remainingExpenses?: number;
 }
 
-export function BalanceCard({ balance, income, expense, loading }: BalanceCardProps) {
+export function BalanceCard({ 
+  balance, 
+  income, 
+  expense, 
+  loading,
+  projectedBalance,
+  dailyYield = 0,
+  remainingExpenses = 0,
+}: BalanceCardProps) {
+  // Use projected balance if available, otherwise use regular balance
+  const displayBalance = projectedBalance !== undefined ? projectedBalance : balance;
+  const hasProjection = projectedBalance !== undefined && remainingExpenses > 0;
+  
   return (
     <Card className="bg-gradient-to-br from-primary/20 to-accent/10 border-primary/20">
       <CardContent className="pt-6">
         {/* Main Balance */}
-        <div className="text-center mb-6">
-          <p className="text-sm text-muted-foreground mb-1">Saldo atual</p>
+        <div className="text-center mb-4">
+          <p className="text-sm text-muted-foreground mb-1">
+            {hasProjection ? 'Saldo Projetado' : 'Saldo Atual'}
+          </p>
           <p
             className={cn(
               'text-3xl font-bold tabular-nums',
-              balance >= 0 ? 'text-success' : 'text-destructive'
+              displayBalance >= 0 ? 'text-success' : 'text-destructive'
             )}
           >
-            {loading ? '...' : formatCurrency(balance)}
+            {loading ? '...' : formatCurrency(displayBalance)}
           </p>
+          
+          {/* Show remaining expenses indicator */}
+          {hasProjection && remainingExpenses > 0 && (
+            <div className="flex items-center justify-center gap-1 mt-1 text-xs text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              <span>Contas a vencer: {formatCurrency(remainingExpenses)}</span>
+            </div>
+          )}
+          
+          {/* Show daily yield indicator */}
+          {dailyYield > 0 && (
+            <div className="flex items-center justify-center gap-1 mt-1 text-xs text-success">
+              <Sparkles className="h-3 w-3" />
+              <span>Rendimento diário: +{formatCurrency(dailyYield)}</span>
+            </div>
+          )}
         </div>
 
         {/* Income / Expense Row */}
