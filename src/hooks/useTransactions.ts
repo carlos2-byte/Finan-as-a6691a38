@@ -20,6 +20,7 @@ import { addMonthsToDate, addWeeksToDate, addYearsToDate, getLocalDateString } f
 import { calculateInvoiceMonth } from '@/lib/invoiceUtils';
 import { generateAutoCardPayments } from '@/lib/autoCardPayment';
 import { processIncomeTransfer, initializeMonthEndCheck } from '@/lib/balanceTransfer';
+import { syncAfterTransactionChange, storeOriginalCardLimit } from '@/lib/dataIntegrity';
 
 export interface TransferResult {
   transferred: boolean;
@@ -220,8 +221,12 @@ export function useTransactions(month?: string) {
         savedTransaction = newTx;
       }
 
-      // Generate auto-payments for cards configured with defaultPayerCardId
-      await generateAutoCardPayments();
+      // Sync data integrity - recalculate card limits from scratch
+      const affectedCardIds = tx.cardId ? [tx.cardId] : [];
+      if (isCardToCardPayment && targetCardId) {
+        affectedCardIds.push(targetCardId);
+      }
+      await syncAfterTransactionChange(affectedCardIds);
 
       // Check if this income triggers a balance transfer from previous month
       let transferResult: TransferResult | null = null;
@@ -296,8 +301,11 @@ export function useTransactions(month?: string) {
         }
       }
 
-      // Regenerate auto-payments after updates
-      await generateAutoCardPayments();
+      // Sync data integrity - recalculate affected card limits
+      const affectedCardIds = new Set<string>();
+      if (tx.cardId) affectedCardIds.add(tx.cardId);
+      if (updates.cardId) affectedCardIds.add(updates.cardId);
+      await syncAfterTransactionChange(Array.from(affectedCardIds));
 
       await loadTransactions();
     },
@@ -383,8 +391,9 @@ export function useTransactions(month?: string) {
         }
       }
 
-      // Regenerate auto-payments after deletions
-      await generateAutoCardPayments();
+      // Sync data integrity - recalculate affected card limits
+      const affectedCardId = tx.cardId;
+      await syncAfterTransactionChange(affectedCardId ? [affectedCardId] : undefined);
       
       await loadTransactions();
     },
