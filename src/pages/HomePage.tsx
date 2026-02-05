@@ -7,6 +7,7 @@ import { CoverageAlert } from '@/components/home/CoverageAlert';
 import { TransferAlert } from '@/components/home/TransferAlert';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { StatementList } from '@/components/transactions/StatementList';
+import { StatementFilter, FilterOptions } from '@/components/transactions/StatementFilter';
 import { AddTransactionSheet } from '@/components/transactions/AddTransactionSheet';
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
@@ -28,6 +29,7 @@ export default function HomePage() {
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [filters, setFilters] = useState<FilterOptions>({ types: [], categories: [] });
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -86,22 +88,67 @@ export default function HomePage() {
     checkAndCoverNegativeBalance();
   }, [balance, loading, month]);
 
-  // Filter items by search query
-  const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return items;
-    const query = searchQuery.toLowerCase();
-    return items.filter(item => {
+  // Get available categories from items
+  const availableCategories = useMemo(() => {
+    const categories = new Set<string>();
+    items.forEach(item => {
       if (isConsolidatedInvoice(item)) {
-        return item.cardName.toLowerCase().includes(query) || 
-               item.transactions.some(tx => 
-                 tx.description?.toLowerCase().includes(query) ||
-                 tx.category?.toLowerCase().includes(query)
-               );
+        item.transactions.forEach(tx => {
+          if (tx.category) categories.add(tx.category);
+        });
+      } else if (item.category) {
+        categories.add(item.category);
       }
-      return item.description?.toLowerCase().includes(query) ||
-             item.category?.toLowerCase().includes(query);
     });
-  }, [items, searchQuery]);
+    return Array.from(categories).sort();
+  }, [items]);
+
+  // Filter items by search query and filters
+  const filteredItems = useMemo(() => {
+    let result = items;
+
+    // Apply type filters
+    if (filters.types.length > 0) {
+      result = result.filter(item => {
+        if (isConsolidatedInvoice(item)) {
+          return filters.types.includes('card');
+        }
+        if (item.type === 'income' && filters.types.includes('income')) return true;
+        if (item.type === 'expense' && filters.types.includes('expense')) return true;
+        return false;
+      });
+    }
+
+    // Apply category filters
+    if (filters.categories.length > 0) {
+      result = result.filter(item => {
+        if (isConsolidatedInvoice(item)) {
+          return item.transactions.some(tx => 
+            tx.category && filters.categories.includes(tx.category)
+          );
+        }
+        return item.category && filters.categories.includes(item.category);
+      });
+    }
+
+    // Apply search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(item => {
+        if (isConsolidatedInvoice(item)) {
+          return item.cardName.toLowerCase().includes(query) || 
+                 item.transactions.some(tx => 
+                   tx.description?.toLowerCase().includes(query) ||
+                   tx.category?.toLowerCase().includes(query)
+                 );
+        }
+        return item.description?.toLowerCase().includes(query) ||
+               item.category?.toLowerCase().includes(query);
+      });
+    }
+
+    return result;
+  }, [items, searchQuery, filters]);
 
   const handleDelete = (transaction: Transaction) => {
     setTransactionToDelete(transaction);
@@ -250,7 +297,15 @@ export default function HomePage() {
 
         {/* Statement */}
         <section>
-          <h2 className="text-lg font-semibold mb-3">Extrato</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Extrato</h2>
+            <StatementFilter
+              cards={cards}
+              availableCategories={availableCategories}
+              filters={filters}
+              onFiltersChange={setFilters}
+            />
+          </div>
           <ScrollArea className="h-[calc(100vh-420px)]">
             <StatementList
               items={filteredItems}
