@@ -260,7 +260,17 @@ export function useTransactions(month?: string) {
       // Usamos a data de hoje como limite mínimo
       const today = getLocalDateString();
 
+      // For recurring/installment updates (non-single), we should NOT change the date
+      // Each transaction should keep its original date (month) - only update other fields
+      const getUpdatesForRelated = (originalTx: Transaction): Partial<Transaction> => {
+        // Remove date from updates when updating multiple related transactions
+        // This ensures each transaction stays in its original month
+        const { date, invoiceMonth, ...safeUpdates } = updates;
+        return safeUpdates;
+      };
+
       if (updateType === 'single') {
+        // Single transaction can have date changed
         await saveTransaction({ ...tx, ...updates });
       } else if (updateType === 'fromThis') {
         // Update this and all future installments/recurrences (>= today)
@@ -277,8 +287,9 @@ export function useTransactions(month?: string) {
           return t.id === tx.id;
         });
 
+        const safeUpdates = getUpdatesForRelated(tx);
         for (const relatedTx of relatedTxs) {
-          await saveTransaction({ ...relatedTx, ...updates });
+          await saveTransaction({ ...relatedTx, ...safeUpdates });
         }
       } else if (updateType === 'all') {
         // Update all related transactions (ONLY >= today, preserve past)
@@ -297,8 +308,9 @@ export function useTransactions(month?: string) {
           return isRelated && t.date >= today;
         });
 
+        const safeUpdates = getUpdatesForRelated(tx);
         for (const relatedTx of relatedTxs) {
-          await saveTransaction({ ...relatedTx, ...updates });
+          await saveTransaction({ ...relatedTx, ...safeUpdates });
         }
       }
 
