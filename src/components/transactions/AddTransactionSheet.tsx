@@ -219,19 +219,17 @@ export function AddTransactionSheet({
               </div>
             )}
 
-            {/* Date - disabled for recurring/installment edits to prevent date consolidation */}
+            {/* Date */}
             <div className="space-y-2">
               <Label>Data</Label>
               <Input 
                 type="date" 
                 value={date} 
                 onChange={e => setDate(e.target.value)}
-                disabled={!!isEditingRecurringOrInstallment}
               />
               {isEditingRecurringOrInstallment && (
                 <p className="text-xs text-muted-foreground">
-                  A data não pode ser alterada em transações recorrentes/parceladas. 
-                  Cada lançamento permanece em seu mês original.
+                  Alterar a data criará uma nova recorrência a partir desta data e encerrará a anterior.
                 </p>
               )}
             </div>
