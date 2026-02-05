@@ -250,7 +250,10 @@ export function useTransactions(month?: string) {
       updates: Partial<Transaction>,
       updateType: 'single' | 'fromThis' | 'all' = 'single'
     ) => {
-      const tx = transactions.find(t => t.id === id);
+      // IMPORTANT: Always fetch from storage to get complete transaction data
+      // The local 'transactions' state only contains current month transactions
+      const allTxs = await getAllTransactions();
+      const tx = allTxs.find(t => t.id === id);
       if (!tx) return;
 
       // REGRA GLOBAL: alterações nunca afetam o passado
@@ -261,7 +264,6 @@ export function useTransactions(month?: string) {
         await saveTransaction({ ...tx, ...updates });
       } else if (updateType === 'fromThis') {
         // Update this and all future installments/recurrences (>= today)
-        const allTxs = await getAllTransactions();
         const fromDate = tx.date >= today ? tx.date : today;
         
         const relatedTxs = allTxs.filter(t => {
@@ -280,7 +282,6 @@ export function useTransactions(month?: string) {
         }
       } else if (updateType === 'all') {
         // Update all related transactions (ONLY >= today, preserve past)
-        const allTxs = await getAllTransactions();
         const relatedTxs = allTxs.filter(t => {
           // First check if it's related
           let isRelated = false;
@@ -309,7 +310,7 @@ export function useTransactions(month?: string) {
 
       await loadTransactions();
     },
-    [loadTransactions, transactions]
+    [loadTransactions]
   );
 
   const removeTransaction = useCallback(
