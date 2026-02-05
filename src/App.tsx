@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LockScreen } from "@/components/security/LockScreen";
+import { SplashScreen } from "@/components/SplashScreen";
 import { useAppLock } from "@/hooks/useAppLock";
 import { generateAutoCardPayments } from "@/lib/autoCardPayment";
 import HomePage from "./pages/HomePage";
@@ -22,6 +23,7 @@ function AppContent() {
   const { hasPassword, loading } = useAppLock();
   const [unlocked, setUnlocked] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   // Only check lock status on initial load
   useEffect(() => {
@@ -39,6 +41,11 @@ function AppContent() {
   useEffect(() => {
     generateAutoCardPayments();
   }, []);
+
+  // Show splash screen first
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
 
   if (loading) {
     return (
