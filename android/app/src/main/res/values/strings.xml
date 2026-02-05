@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FinancasPRO</string>
+    <string name="title_activity_main">FinancasPRO</string>
+    <string name="package_name">com.carlos.financaspro</string>
+    <string name="custom_url_scheme">com.carlos.financaspro</string>
+</resources>
