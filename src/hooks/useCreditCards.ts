@@ -12,6 +12,11 @@ import {
 } from '@/lib/storage';
 import { generateId, getCurrentMonth } from '@/lib/formatters';
 import { generateAutoCardPayments } from '@/lib/autoCardPayment';
+import { 
+  storeOriginalCardLimit, 
+  removeOriginalCardLimit,
+  recalculateCardLimit,
+} from '@/lib/dataIntegrity';
 
 export function useCreditCards() {
   const [cards, setCards] = useState<CreditCard[]>([]);
@@ -38,6 +43,12 @@ export function useCreditCards() {
         id: generateId(),
       };
       await addCreditCard(newCard);
+      
+      // Store original limit for data integrity calculations
+      if (newCard.limit) {
+        await storeOriginalCardLimit(newCard.id, newCard.limit);
+      }
+      
       await loadCards();
       return newCard;
     },
@@ -51,6 +62,8 @@ export function useCreditCards() {
       if (card.defaultPayerCardId) {
         await generateAutoCardPayments();
       }
+      // Recalculate limit to ensure consistency
+      await recalculateCardLimit(card.id);
       await loadCards();
     },
     [loadCards]
@@ -58,6 +71,8 @@ export function useCreditCards() {
 
   const removeCard = useCallback(
     async (cardId: string) => {
+      // Remove stored original limit
+      await removeOriginalCardLimit(cardId);
       await deleteCreditCard(cardId);
       await loadCards();
     },

@@ -260,45 +260,76 @@ export async function processDailyYields(): Promise<number> {
   
   let totalNetYield = 0;
   
-  // Determine which days need processing
-  // If no last process date, start from investments' start dates
-  // Otherwise, process from last process date + 1 until yesterday
+  // Yesterday is the last day we can calculate yields for
+  // (yields are applied the next day)
   const yesterday = addDaysToDate(today, -1);
   
   for (const investment of investments) {
     if (!investment.isActive) continue;
     
     // Determine start date for processing
+    // For a new investment, start from startDate
+    // For existing ones, continue from last processed + 1
     let processStartDate = investment.startDate;
-    if (lastProcessDate && lastProcessDate >= investment.startDate) {
-      processStartDate = addDaysToDate(lastProcessDate, 1);
+    
+    // Check what was the last processed date FOR THIS INVESTMENT
+    const investmentHistory = history.filter(h => h.investmentId === investment.id);
+    const lastInvestmentYield = investmentHistory
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    
+    if (lastInvestmentYield) {
+      // Continue from the day after the last processed date
+      processStartDate = addDaysToDate(lastInvestmentYield.date, 1);
     }
     
     // Only process up to yesterday (yield applies next day)
     if (processStartDate > yesterday) continue;
     
-    // Process each day that needs catching up
-    let currentDate = processStartDate;
-    let currentAmount = investment.currentAmount;
-    
-    // First, get the latest balance from history if any
-    const latestHistory = history
-      .filter(h => h.investmentId === investment.id)
-      .sort((a, b) => b.date.localeCompare(a.date))[0];
-    
-    if (latestHistory) {
-      currentAmount = latestHistory.balanceAfter;
+    // Determine starting balance
+    // If we have history, use the last balance
+    // Otherwise use the initial amount
+    let currentAmount: number;
+    if (lastInvestmentYield) {
+      currentAmount = lastInvestmentYield.balanceAfter;
+    } else {
+      currentAmount = investment.initialAmount;
     }
     
+    // Get the applicable yield rate for each day
+    // (considering rate change history)
+    const getYieldRateForDate = (date: string): number => {
+      if (!investment.yieldRateHistory || investment.yieldRateHistory.length === 0) {
+        return investment.yieldRate;
+      }
+      
+      // Find the rate that was active on this date
+      // Rate changes are prospective, so use the rate that was set before or on this date
+      let activeRate = investment.yieldRate;
+      for (const change of investment.yieldRateHistory.sort((a, b) => a.date.localeCompare(b.date))) {
+        if (change.date <= date) {
+          activeRate = change.newRate;
+        } else {
+          break;
+        }
+      }
+      return activeRate;
+    };
+    
+    // Process each day sequentially
+    let currentDate = processStartDate;
+    
     while (currentDate <= yesterday) {
-      // Check if already processed
+      // Double-check we haven't processed this date already (prevent duplicates)
       const alreadyProcessed = history.some(
         h => h.investmentId === investment.id && h.date === currentDate
       );
       
       if (!alreadyProcessed) {
+        // Get the yield rate for this specific date
+        const yieldRate = getYieldRateForDate(currentDate);
+        
         // Calculate yield for this day
-        const grossYield = calculateDailyYield(currentAmount, investment.yieldRate);
+        const grossYield = calculateDailyYield(currentAmount, yieldRate);
         const { gross, tax, net } = calculateNetYield(grossYield);
         
         const balanceBefore = currentAmount;
@@ -320,6 +351,14 @@ export async function processDailyYields(): Promise<number> {
         history.push(yieldRecord);
         currentAmount = balanceAfter;
         totalNetYield += net;
+      } else {
+        // If already processed, get the balance after for continuity
+        const existingRecord = history.find(
+          h => h.investmentId === investment.id && h.date === currentDate
+        );
+        if (existingRecord) {
+          currentAmount = existingRecord.balanceAfter;
+        }
       }
       
       currentDate = addDaysToDate(currentDate, 1);
