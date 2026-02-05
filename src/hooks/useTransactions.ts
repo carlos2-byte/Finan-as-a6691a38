@@ -260,9 +260,15 @@ export function useTransactions(month?: string) {
       // Usamos a data de hoje como limite mínimo
       const today = getLocalDateString();
 
+      // Check if date is being changed for a recurring transaction
+      const isRecurring = !!tx.recurrenceId;
+      const isInstallment = tx.parentId || (tx.installments && tx.installments > 1);
+      const dateChanged = updates.date && updates.date !== tx.date;
+
       // For recurring/installment updates (non-single), we should NOT change the date
       // Each transaction should keep its original date (month) - only update other fields
-      const getUpdatesForRelated = (originalTx: Transaction): Partial<Transaction> => {
+      // UNLESS the date is explicitly changed, which triggers delete + recreate
+      const getUpdatesForRelated = (): Partial<Transaction> => {
         // Remove date from updates when updating multiple related transactions
         // This ensures each transaction stays in its original month
         const { date, invoiceMonth, ...safeUpdates } = updates;
@@ -272,45 +278,94 @@ export function useTransactions(month?: string) {
       if (updateType === 'single') {
         // Single transaction can have date changed
         await saveTransaction({ ...tx, ...updates });
-      } else if (updateType === 'fromThis') {
-        // Update this and all future installments/recurrences (>= today)
-        const fromDate = tx.date >= today ? tx.date : today;
-        
-        const relatedTxs = allTxs.filter(t => {
-          if (tx.recurrenceId) {
-            return t.recurrenceId === tx.recurrenceId && t.date >= fromDate;
+      } else if (updateType === 'fromThis' || updateType === 'all') {
+        // If date changed for recurring, we need to:
+        // 1. Delete old recurrence from this point forward
+        // 2. Create new recurrence with the new date
+        if (dateChanged && isRecurring && updates.date) {
+          const fromDate = updateType === 'all' ? today : (tx.date >= today ? tx.date : today);
+          
+          // Find and delete old recurring transactions from this point
+          const toDelete = allTxs.filter(t => {
+            if (t.recurrenceId !== tx.recurrenceId) return false;
+            return t.date >= fromDate;
+          });
+          
+          for (const t of toDelete) {
+            await deleteTransaction(t.id);
           }
-          if (tx.parentId || tx.installments) {
-            const parentId = tx.parentId || tx.id;
-            return (t.id === parentId || t.parentId === parentId) && t.date >= fromDate;
-          }
-          return t.id === tx.id;
-        });
 
-        const safeUpdates = getUpdatesForRelated(tx);
-        for (const relatedTx of relatedTxs) {
-          await saveTransaction({ ...relatedTx, ...safeUpdates });
-        }
-      } else if (updateType === 'all') {
-        // Update all related transactions (ONLY >= today, preserve past)
-        const relatedTxs = allTxs.filter(t => {
-          // First check if it's related
-          let isRelated = false;
-          if (tx.recurrenceId) {
-            isRelated = t.recurrenceId === tx.recurrenceId;
-          } else if (tx.parentId || tx.installments) {
-            const parentId = tx.parentId || tx.id;
-            isRelated = t.id === parentId || t.parentId === parentId;
-          } else {
-            isRelated = t.id === tx.id;
+          // Create new recurring series with the updated data
+          const newRecurrenceId = generateId();
+          const recurringTransactions: Transaction[] = [];
+          let currentDate = updates.date;
+          
+          // Get card info if needed
+          let closingDay = 25;
+          if (tx.isCardPayment && tx.cardId) {
+            const card = await getCreditCardById(tx.cardId);
+            if (card?.closingDay) {
+              closingDay = card.closingDay;
+            }
           }
-          // Then only include if date >= today (preserve past)
-          return isRelated && t.date >= today;
-        });
+          
+          // Generate transactions for the next 5 years
+          const maxEndDate = addYearsToDate(updates.date, 5);
+          
+          while (currentDate <= maxEndDate) {
+            let invoiceMonth: string | undefined;
+            if (tx.isCardPayment) {
+              invoiceMonth = calculateInvoiceMonth(currentDate, closingDay);
+            }
 
-        const safeUpdates = getUpdatesForRelated(tx);
-        for (const relatedTx of relatedTxs) {
-          await saveTransaction({ ...relatedTx, ...safeUpdates });
+            const newTx: Transaction = {
+              ...tx,
+              ...updates,
+              id: generateId(),
+              date: currentDate,
+              isRecurring: true,
+              recurrenceType: tx.recurrenceType || 'monthly',
+              recurrenceId: newRecurrenceId,
+              invoiceMonth,
+            };
+            
+            recurringTransactions.push(newTx);
+
+            // Calculate next date based on recurrence type
+            switch (tx.recurrenceType) {
+              case 'weekly':
+                currentDate = addWeeksToDate(currentDate, 1);
+                break;
+              case 'yearly':
+                currentDate = addYearsToDate(currentDate, 1);
+                break;
+              case 'monthly':
+              default:
+                currentDate = addMonthsToDate(currentDate, 1);
+                break;
+            }
+          }
+
+          await saveTransactions(recurringTransactions);
+        } else {
+          // Normal update without date change - update only safe fields
+          const fromDate = updateType === 'all' ? today : (tx.date >= today ? tx.date : today);
+          
+          const relatedTxs = allTxs.filter(t => {
+            if (isRecurring) {
+              return t.recurrenceId === tx.recurrenceId && t.date >= fromDate;
+            }
+            if (isInstallment) {
+              const parentId = tx.parentId || tx.id;
+              return (t.id === parentId || t.parentId === parentId) && t.date >= fromDate;
+            }
+            return t.id === tx.id;
+          });
+
+          const safeUpdates = getUpdatesForRelated();
+          for (const relatedTx of relatedTxs) {
+            await saveTransaction({ ...relatedTx, ...safeUpdates });
+          }
         }
       }
 
