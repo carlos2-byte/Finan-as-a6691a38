@@ -10,6 +10,7 @@ import {
   Lock,
   Unlock,
   Trash2,
+  FolderDown,
 } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +28,7 @@ import {
 import { useSettings } from '@/hooks/useSettings';
 import { exportAllData, importAllData, clearAllData } from '@/lib/storage';
 import { isPasswordEnabled, removePassword } from '@/lib/security';
+import { exportToFile, isNativePlatform } from '@/lib/fileExport';
 import { toast } from '@/hooks/use-toast';
 import { PasswordSetupSheet } from '@/components/security/PasswordSetupSheet';
 import { ExportBackupDialog } from '@/components/settings/ExportBackupDialog';
@@ -66,19 +68,24 @@ export default function SettingsPage() {
     setIsExporting(true);
     try {
       const data = await exportAllData(includeInvestments);
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `financas-pro-backup-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      const message = includeInvestments 
-        ? 'Backup exportado com investimentos!' 
-        : 'Backup exportado sem investimentos!';
-      toast({ title: message });
+      const filename = `financas-pro-backup-${new Date().toISOString().split('T')[0]}.json`;
+      
+      const result = await exportToFile(data, filename);
+      
+      if (result.success) {
+        const locationMsg = isNativePlatform() 
+          ? ` Salvo em: ${result.path}` 
+          : '';
+        const investMsg = includeInvestments 
+          ? 'Backup exportado com investimentos!' 
+          : 'Backup exportado sem investimentos!';
+        toast({ 
+          title: investMsg + locationMsg,
+          description: isNativePlatform() ? 'Verifique a pasta Downloads ou Documentos' : undefined,
+        });
+      } else {
+        toast({ title: result.error || 'Erro ao exportar', variant: 'destructive' });
+      }
     } catch (error) {
       toast({ title: 'Erro ao exportar', variant: 'destructive' });
     } finally {
@@ -266,8 +273,16 @@ export default function SettingsPage() {
                 onClick={() => setShowExportDialog(true)}
                 disabled={isExporting}
               >
-                <Download className="h-4 w-4 mr-2" />
-                {isExporting ? 'Exportando...' : 'Exportar Backup (JSON)'}
+                {isNativePlatform() ? (
+                  <FolderDown className="h-4 w-4 mr-2" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {isExporting 
+                  ? 'Exportando...' 
+                  : isNativePlatform() 
+                    ? 'Exportar para Downloads' 
+                    : 'Exportar Backup (JSON)'}
               </Button>
 
               <input
