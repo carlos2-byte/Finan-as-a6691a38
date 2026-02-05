@@ -95,21 +95,21 @@ export function TransactionItem({
   }, [transaction, isCardPayment]);
 
   return (
-    <div className="flex items-center gap-3 py-3 group">
+    <div className="flex items-center gap-2 py-2 group">
       <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
         style={{ backgroundColor: category?.color ? `${category.color}20` : 'hsl(var(--muted))' }}
       >
         <Icon
-          className="h-5 w-5"
+          className="h-4 w-4"
           style={{ color: category?.color || 'hsl(var(--muted-foreground))' }}
         />
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="font-medium text-sm truncate max-w-[80px]">
-            {(transaction.description || category?.name || 'Transação').slice(0, 10)}
+        <div className="flex items-center gap-1">
+          <p className="font-medium text-sm truncate max-w-[100px]">
+            {transaction.description || category?.name || 'Transação'}
           </p>
           {transaction.isCardPayment && (
             <CreditCard className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -118,70 +118,63 @@ export function TransactionItem({
             <Repeat className="h-3 w-3 text-primary shrink-0" />
           )}
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-          <span className="flex items-center gap-1">
-            {isCardPayment && <Calendar className="h-3 w-3" />}
-            {isCardPayment ? `Venc. ${formatDateShortBR(displayDate)}` : formatDate(transaction.date)}
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-0.5">
+            {isCardPayment && <Calendar className="h-2.5 w-2.5" />}
+            {isCardPayment ? formatDateShortBR(displayDate) : formatDate(transaction.date)}
           </span>
           {cardName && (
-            <span className="bg-muted px-1.5 py-0.5 rounded text-[10px]">
+            <span className="bg-muted px-1 py-0.5 rounded text-[9px] truncate max-w-[50px]">
               {cardName}
             </span>
           )}
           {isInstallment && (
-            <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]">
+            <span className="bg-secondary px-1 py-0.5 rounded text-[9px]">
               {transaction.currentInstallment}/{transaction.installments}
-            </span>
-          )}
-          {isRecurring && (
-            <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px]">
-              recorrente
             </span>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            'font-semibold text-sm tabular-nums',
-            isIncome ? 'text-success' : 'text-foreground'
-          )}
-        >
-          {isIncome ? '+' : ''}{formatCurrency(transaction.amount)}
-        </span>
-        
-        {showActions && (
-          <div className="flex gap-1 transition-opacity">
-            {onEdit && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 touch-manipulation"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(transaction);
-                }}
-              >
-                <Pencil className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            )}
-            {onDelete && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 touch-manipulation"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(transaction);
-                }}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            )}
-          </div>
+      <span
+        className={cn(
+          'font-semibold text-sm tabular-nums whitespace-nowrap',
+          isIncome ? 'text-success' : 'text-foreground'
         )}
-      </div>
+      >
+        {isIncome ? '+' : ''}{formatCurrency(transaction.amount)}
+      </span>
+      
+      {showActions && (
+        <div className="flex gap-0.5">
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 touch-manipulation"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(transaction);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 touch-manipulation"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(transaction);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
