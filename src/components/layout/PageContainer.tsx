@@ -16,16 +16,16 @@ export function PageContainer({
 }: PageContainerProps) {
   return (
     <div className={cn(
-      'min-h-screen pb-20 safe-top',
+      'min-h-screen min-h-dvh w-full pb-20 safe-top',
       !noPadding && 'px-4 pt-6',
       className
     )}>
       {header && (
-        <header className="mb-6">
+        <header className="mb-6 max-w-lg mx-auto">
           {header}
         </header>
       )}
-      <main className="mx-auto max-w-lg">
+      <main className="mx-auto max-w-lg w-full">
         {children}
       </main>
     </div>
