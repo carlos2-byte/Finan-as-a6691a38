@@ -108,8 +108,8 @@ export function TransactionItem({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="font-medium text-sm truncate">
-            {transaction.description || category?.name || 'Transação'}
+          <p className="font-medium text-sm truncate max-w-[80px]">
+            {(transaction.description || category?.name || 'Transação').slice(0, 10)}
           </p>
           {transaction.isCardPayment && (
             <CreditCard className="h-3 w-3 text-muted-foreground shrink-0" />
