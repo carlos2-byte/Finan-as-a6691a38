@@ -58,6 +58,13 @@ export function AddTransactionSheet({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Check if editing a recurring or installment transaction
+  const isEditingRecurringOrInstallment = editingTransaction && (
+    editingTransaction.recurrenceId || 
+    editingTransaction.parentId || 
+    (editingTransaction.installments && editingTransaction.installments > 1)
+  );
+
   // Reset form when opened or load editing transaction
   useEffect(() => {
     if (open) {
@@ -212,10 +219,21 @@ export function AddTransactionSheet({
               </div>
             )}
 
-            {/* Date */}
+            {/* Date - disabled for recurring/installment edits to prevent date consolidation */}
             <div className="space-y-2">
               <Label>Data</Label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+              <Input 
+                type="date" 
+                value={date} 
+                onChange={e => setDate(e.target.value)}
+                disabled={!!isEditingRecurringOrInstallment}
+              />
+              {isEditingRecurringOrInstallment && (
+                <p className="text-xs text-muted-foreground">
+                  A data não pode ser alterada em transações recorrentes/parceladas. 
+                  Cada lançamento permanece em seu mês original.
+                </p>
+              )}
             </div>
 
             {/* Only show recurrence and installment options when NOT editing */}
