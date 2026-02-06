@@ -321,7 +321,7 @@ export default function HomePage() {
       {/* FAB - Add Transaction */}
       <Button
         size="lg"
-        className="fixed bottom-24 right-4 h-14 w-14 rounded-full shadow-lg z-40"
+        className="fixed bottom-24 left-4 h-14 w-14 rounded-full shadow-lg z-40"
         onClick={() => {
           setTransactionToEdit(null);
           setShowAddSheet(true);
