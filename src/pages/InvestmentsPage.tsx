@@ -264,16 +264,21 @@ export default function InvestmentsPage() {
             </CardContent>
           </Card>
 
+          {/* Add Investment Button */}
+          <Button
+            className="w-full rounded-xl h-12"
+            onClick={() => setShowAddSheet(true)}
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Adicionar Investimento
+          </Button>
+
           {/* Investments List */}
           {investments.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-muted-foreground">Nenhum investimento cadastrado</p>
-                <Button className="mt-4" onClick={() => setShowAddSheet(true)}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Adicionar Investimento
-                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -428,17 +433,6 @@ export default function InvestmentsPage() {
                 );
               })}
         </div>
-          )}
-
-          {/* FAB - Add Investment (only shows when investments exist) */}
-          {investments.length > 0 && (
-            <Button
-              size="lg"
-              className="fixed bottom-24 right-4 h-14 w-14 rounded-full shadow-lg z-40"
-              onClick={() => setShowAddSheet(true)}
-            >
-              <Plus className="h-6 w-6" />
-            </Button>
           )}
         </div>
       </ScrollArea>

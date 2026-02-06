@@ -289,6 +289,18 @@ export default function HomePage() {
           dailyYield={balanceData?.dailyYield ?? 0}
         />
 
+        {/* Add Transaction Button */}
+        <Button
+          className="w-full rounded-xl h-12"
+          onClick={() => {
+            setTransactionToEdit(null);
+            setShowAddSheet(true);
+          }}
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Adicionar Transação
+        </Button>
+
         {/* Statement */}
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -300,7 +312,7 @@ export default function HomePage() {
               onFiltersChange={setFilters}
             />
           </div>
-          <ScrollArea className="h-[calc(100vh-420px)]">
+          <ScrollArea className="h-[calc(100vh-480px)]">
             <StatementList
               items={filteredItems}
               loading={loading}
@@ -317,18 +329,6 @@ export default function HomePage() {
           </ScrollArea>
         </section>
       </div>
-
-      {/* FAB - Add Transaction */}
-      <Button
-        size="lg"
-        className="fixed bottom-24 left-4 h-14 w-14 rounded-full shadow-lg z-40"
-        onClick={() => {
-          setTransactionToEdit(null);
-          setShowAddSheet(true);
-        }}
-      >
-        <Plus className="h-6 w-6" />
-      </Button>
 
       {/* Add/Edit Transaction Sheet */}
       <AddTransactionSheet
