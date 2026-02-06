@@ -230,50 +230,52 @@ export default function InvestmentsPage() {
         </div>
       }
     >
-      <ScrollArea className="h-[calc(100vh-140px)]">
-        <div className="space-y-3 pb-4">
-          {/* Total Card */}
-          <Card className="bg-primary/10 border-primary/20">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <TrendingUp className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Investido</p>
-                  <p className="text-2xl font-bold text-primary tabular-nums">
-                    {formatCurrency(totalInvested)}
-                  </p>
-                </div>
+      <div className="space-y-3">
+        {/* Total Card */}
+        <Card className="bg-primary/10 border-primary/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-8 w-8 text-primary" />
+              <div>
+                <p className="text-sm text-muted-foreground">Total Investido</p>
+                <p className="text-2xl font-bold text-primary tabular-nums">
+                  {formatCurrency(totalInvested)}
+                </p>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
-                <div>
-                  <p className="text-xs text-muted-foreground">Rendimento Diário</p>
-                  <p className="font-semibold text-success tabular-nums">
-                    +{formatCurrency(totalDailyYield)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Rendimento Mensal (est.)</p>
-                  <p className="font-semibold text-success tabular-nums">
-                    +{formatCurrency(totalMonthlyYield)}
-                  </p>
-                </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
+              <div>
+                <p className="text-xs text-muted-foreground">Rendimento Diário</p>
+                <p className="font-semibold text-success tabular-nums">
+                  +{formatCurrency(totalDailyYield)}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Taxa padrão: {defaultRate}% a.a. • Imposto: 20% sobre rendimentos
-              </p>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-xs text-muted-foreground">Rendimento Mensal (est.)</p>
+                <p className="font-semibold text-success tabular-nums">
+                  +{formatCurrency(totalMonthlyYield)}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Taxa padrão: {defaultRate}% a.a. • Imposto: 20% sobre rendimentos
+            </p>
+          </CardContent>
+        </Card>
 
-          {/* Add Investment Button */}
-          <div className="flex justify-center">
-            <Button
-              className="rounded-full px-4 h-9 shadow-lg"
-              onClick={() => setShowAddSheet(true)}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Adicionar
-            </Button>
-          </div>
+        {/* Add Investment Button - between Total Card and List */}
+        <div className="flex justify-center">
+          <Button
+            className="rounded-full px-4 h-9 shadow-lg"
+            onClick={() => setShowAddSheet(true)}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Adicionar
+          </Button>
+        </div>
+
+        {/* Investments List */}
+        <ScrollArea className="h-[calc(100vh-380px)]">
 
           {/* Investments List */}
           {investments.length === 0 ? (
@@ -434,10 +436,10 @@ export default function InvestmentsPage() {
                   </Card>
                 );
               })}
-        </div>
+            </div>
           )}
-        </div>
-      </ScrollArea>
+        </ScrollArea>
+      </div>
 
       {/* Add Investment Sheet */}
       <Sheet open={showAddSheet} onOpenChange={setShowAddSheet}>
