@@ -290,16 +290,18 @@ export default function HomePage() {
         />
 
         {/* Add Transaction Button */}
-        <Button
-          className="w-full rounded-xl h-12"
-          onClick={() => {
-            setTransactionToEdit(null);
-            setShowAddSheet(true);
-          }}
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Adicionar Transação
-        </Button>
+        <div className="flex justify-center -my-2">
+          <Button
+            className="rounded-full px-4 h-9 shadow-lg"
+            onClick={() => {
+              setTransactionToEdit(null);
+              setShowAddSheet(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Adicionar
+          </Button>
+        </div>
 
         {/* Statement */}
         <section>
