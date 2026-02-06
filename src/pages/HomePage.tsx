@@ -22,6 +22,7 @@ import { getCurrentMonth } from '@/lib/formatters';
 import { Transaction } from '@/lib/storage';
 import { ConsolidatedInvoice } from '@/lib/invoiceUtils';
 import { checkAndRecordMonthEndBalance } from '@/lib/balanceTransfer';
+import { applyTodaysCoverageIfNeeded } from '@/lib/investmentCoverage';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ export default function HomePage() {
   // Keep useTransactions for CRUD operations
   const { addTransaction, updateTransaction, removeTransaction } = useTransactions(month);
   const { cards } = useCreditCards();
-  const { useCoverage, refresh: refreshInvestments } = useInvestments();
+  const { refresh: refreshInvestments } = useInvestments();
 
   // Check and record month-end balance when viewing past months
   useEffect(() => {
@@ -55,27 +56,18 @@ export default function HomePage() {
     checkMonthEnd();
   }, [month]);
 
-  // Check for negative balance and auto-cover with investments
+  // Check and apply coverage for today's due items
   useEffect(() => {
-    const checkAndCoverNegativeBalance = async () => {
-      if (loading || balance >= 0) return;
+    const checkAndApplyCoverage = async () => {
+      if (loading || items.length === 0) return;
       
-      const negativeAmount = Math.abs(balance);
-      const result = await useCoverage(negativeAmount);
+      // Apply coverage only on the exact date expenses/invoices are due
+      const result = await applyTodaysCoverageIfNeeded(items);
       
       if (result) {
-        // Create income transaction for the coverage
-        await addTransaction({
-          amount: result.usedAmount,
-          description: `Cobertura automática: ${result.investmentName}`,
-          type: 'income',
-          date: new Date().toISOString().split('T')[0],
-          category: 'income',
-        });
-        
         // Show alert
         setCoverageInfo({
-          amount: result.usedAmount,
+          amount: result.amount,
           investmentName: result.investmentName,
         });
         
@@ -85,8 +77,8 @@ export default function HomePage() {
       }
     };
 
-    checkAndCoverNegativeBalance();
-  }, [balance, loading, month]);
+    checkAndApplyCoverage();
+  }, [items, loading, refreshStatement, refreshInvestments]);
 
   // Get available categories from items
   const availableCategories = useMemo(() => {
