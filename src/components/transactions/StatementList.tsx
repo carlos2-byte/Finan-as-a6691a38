@@ -4,6 +4,7 @@ import { StatementItem, isConsolidatedInvoice } from '@/hooks/useStatement';
 import { TransactionItem } from './TransactionItem';
 import { InvoiceItem } from './InvoiceItem';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePaymentStatus } from '@/hooks/usePaymentStatus';
 
 interface StatementListProps {
   items: StatementItem[];
@@ -24,7 +25,9 @@ export function StatementList({
   showActions = false,
   emptyMessage = 'Nenhuma transação encontrada',
 }: StatementListProps) {
-  if (loading) {
+  const { isPaid, isOverdue, toggleStatus, loading: statusLoading } = usePaymentStatus();
+
+  if (loading || statusLoading) {
     return (
       <div className="space-y-3">
         {[1, 2, 3, 4, 5].map(i => (
@@ -58,9 +61,15 @@ export function StatementList({
               key={item.id}
               invoice={item}
               onClick={onInvoiceClick}
+              isPaid={isPaid(item.id)}
+              isOverdue={isOverdue(item.id, item.dueDate)}
+              onTogglePaid={toggleStatus}
             />
           );
         }
+        
+        // Get the due date for the transaction
+        const dueDate = item.date;
         
         return (
           <TransactionItem
@@ -69,6 +78,9 @@ export function StatementList({
             onDelete={onDeleteTransaction}
             onEdit={onEditTransaction}
             showActions={showActions}
+            isPaid={isPaid(item.id)}
+            isOverdue={isOverdue(item.id, dueDate)}
+            onTogglePaid={toggleStatus}
           />
         );
       })}
