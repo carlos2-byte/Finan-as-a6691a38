@@ -6,8 +6,8 @@ import {
   getStatementTotals 
 } from '@/lib/invoiceUtils';
 import { getCurrentMonth } from '@/lib/formatters';
-import { calculateProjectedBalance } from '@/lib/projectedBalance';
-import { getLocalMonth } from '@/lib/dateUtils';
+import { calculateRealTimeBalances } from '@/lib/projectedBalance';
+import { getLocalMonth, getLocalDateString } from '@/lib/dateUtils';
 
 export type StatementItem = Transaction | ConsolidatedInvoice;
 
@@ -15,18 +15,24 @@ export function isConsolidatedInvoice(item: StatementItem): item is Consolidated
   return 'isConsolidatedInvoice' in item && item.isConsolidatedInvoice === true;
 }
 
-interface ProjectedData {
-  projectedBalance: number;
+interface BalanceData {
+  /** Saldo Atual: Entradas - despesas/faturas já vencidas ou lançadas até hoje */
+  currentBalance: number;
+  /** Saídas previstas: total de despesas/faturas com data futura */
+  projectedExpenses: number;
+  /** Rendimento diário estimado */
   dailyYield: number;
-  remainingExpenses: number;
-  paidExpenses: number;
+  /** Total de entradas */
+  totalIncome: number;
+  /** Total de saídas (passadas + futuras) */
+  totalExpense: number;
 }
 
 export function useStatement(month?: string) {
   const [items, setItems] = useState<StatementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [totals, setTotals] = useState({ income: 0, expense: 0 });
-  const [projected, setProjected] = useState<ProjectedData | null>(null);
+  const [balanceData, setBalanceData] = useState<BalanceData | null>(null);
 
   const currentMonth = month || getCurrentMonth();
 
@@ -41,18 +47,9 @@ export function useStatement(month?: string) {
       setItems(statementItems);
       setTotals(statementTotals);
       
-      // Calculate projected balance only for current month
-      const viewingCurrentMonth = currentMonth === getLocalMonth();
-      if (viewingCurrentMonth) {
-        const projectedData = await calculateProjectedBalance(
-          currentMonth,
-          statementTotals.income,
-          statementTotals.expense
-        );
-        setProjected(projectedData);
-      } else {
-        setProjected(null);
-      }
+      // Calculate real-time balances (current balance and projected expenses)
+      const balances = await calculateRealTimeBalances(currentMonth, statementItems);
+      setBalanceData(balances);
     } finally {
       setLoading(false);
     }
@@ -62,6 +59,7 @@ export function useStatement(month?: string) {
     loadStatement();
   }, [loadStatement]);
 
+  // Legacy balance for compatibility
   const balance = totals.income - totals.expense;
 
   return {
@@ -69,7 +67,7 @@ export function useStatement(month?: string) {
     loading,
     totals,
     balance,
-    projected,
+    balanceData,
     refresh: loadStatement,
   };
 }

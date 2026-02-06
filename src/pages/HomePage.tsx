@@ -40,7 +40,7 @@ export default function HomePage() {
   const [transferInfo, setTransferInfo] = useState<{ amount: number; investmentName: string } | null>(null);
 
   // Use the new statement hook for display
-  const { items, loading, totals, balance, projected, refresh: refreshStatement } = useStatement(month);
+  const { items, loading, totals, balance, balanceData, refresh: refreshStatement } = useStatement(month);
   
   // Keep useTransactions for CRUD operations
   const { addTransaction, updateTransaction, removeTransaction } = useTransactions(month);
@@ -289,13 +289,12 @@ export default function HomePage() {
 
         {/* Balance Card */}
         <BalanceCard
-          balance={balance}
+          currentBalance={balanceData?.currentBalance ?? balance}
+          projectedExpenses={balanceData?.projectedExpenses ?? 0}
           income={totals.income}
           expense={totals.expense}
           loading={loading}
-          projectedBalance={projected?.projectedBalance}
-          dailyYield={projected?.dailyYield}
-          remainingExpenses={projected?.remainingExpenses}
+          dailyYield={balanceData?.dailyYield ?? 0}
         />
 
         {/* Statement */}
