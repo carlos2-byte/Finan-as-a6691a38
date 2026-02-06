@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
-import { useTransactions } from '@/hooks/useTransactions';
+import { useStatement, isConsolidatedInvoice } from '@/hooks/useStatement';
 import { formatCurrency, getCurrentMonth } from '@/lib/formatters';
 import { getCategories } from '@/lib/storage';
 import { TrendingUp, TrendingDown, PiggyBank } from 'lucide-react';
@@ -10,24 +10,42 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(getCurrentMonth());
-  const { transactions, totals, categoryTotals, loading } = useTransactions(month);
+  const { items, totals, balanceData, loading } = useStatement(month);
 
-  // Category breakdown for current month
-  const categoryData = useMemo(() => {
+  // Category breakdown for current month - extract from statement items
+  const { categoryData, categoryTotals } = useMemo(() => {
     const categories = getCategories().filter(c => c.type === 'expense');
-    return categories
+    const totalsMap: Record<string, number> = {};
+    
+    // Calculate category totals from statement items
+    for (const item of items) {
+      if (isConsolidatedInvoice(item)) {
+        // For invoices, aggregate from transactions
+        for (const tx of item.transactions) {
+          if (tx.category) {
+            totalsMap[tx.category] = (totalsMap[tx.category] || 0) + Math.abs(tx.amount);
+          }
+        }
+      } else if (item.type === 'expense' && item.category) {
+        totalsMap[item.category] = (totalsMap[item.category] || 0) + Math.abs(item.amount);
+      }
+    }
+    
+    const data = categories
       .map(cat => ({
         id: cat.id,
         name: cat.name,
-        value: categoryTotals[cat.id] || 0,
+        value: totalsMap[cat.id] || 0,
         color: cat.color,
       }))
       .filter(c => c.value > 0)
       .sort((a, b) => b.value - a.value);
-  }, [categoryTotals]);
+    
+    return { categoryData: data, categoryTotals: totalsMap };
+  }, [items]);
 
   const totalExpenses = totals.expense;
-  const balance = totals.income - totals.expense;
+  const currentBalance = balanceData?.currentBalance ?? (totals.income - totals.expense);
 
   return (
     <PageContainer
@@ -55,7 +73,7 @@ export default function DashboardPage() {
             <Card className="bg-destructive/10 border-destructive/20">
               <CardContent className="pt-4 px-3">
                 <TrendingDown className="h-5 w-5 text-destructive mb-1" />
-                <p className="text-[10px] text-muted-foreground">Despesas</p>
+                <p className="text-[10px] text-muted-foreground">Saídas previstas</p>
                 <p className="text-sm font-bold text-destructive tabular-nums">
                   {formatCurrency(totals.expense)}
                 </p>
@@ -65,9 +83,9 @@ export default function DashboardPage() {
             <Card className="bg-primary/10 border-primary/20">
               <CardContent className="pt-4 px-3">
                 <PiggyBank className="h-5 w-5 text-primary mb-1" />
-                <p className="text-[10px] text-muted-foreground">Saldo</p>
-                <p className="text-sm font-bold text-primary tabular-nums">
-                  {formatCurrency(balance)}
+                <p className="text-[10px] text-muted-foreground">Saldo Atual</p>
+                <p className={`text-sm font-bold tabular-nums ${currentBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {formatCurrency(currentBalance)}
                 </p>
               </CardContent>
             </Card>
@@ -158,15 +176,15 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-border/50">
-                  <span className="text-muted-foreground">Total de despesas</span>
+                  <span className="text-muted-foreground">Total de saídas previstas</span>
                   <span className="font-medium text-destructive tabular-nums">
                     -{formatCurrency(totals.expense)}
                   </span>
                 </div>
                 <div className="flex justify-between py-2 font-medium">
-                  <span>Saldo do mês</span>
-                  <span className={balance >= 0 ? 'text-success' : 'text-destructive'}>
-                    {balance >= 0 ? '+' : ''}{formatCurrency(balance)}
+                  <span>Saldo Atual</span>
+                  <span className={currentBalance >= 0 ? 'text-success' : 'text-destructive'}>
+                    {currentBalance >= 0 ? '+' : ''}{formatCurrency(currentBalance)}
                   </span>
                 </div>
               </div>
