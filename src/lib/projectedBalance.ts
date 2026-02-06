@@ -2,18 +2,99 @@
  * Projected Balance Logic
  * 
  * Features:
- * 1. Balance decreases as bills come due (based on expense dates)
- * 2. Daily yield is added to income balance
- * 3. At month end, positive balance is transferred to authorized investment
+ * 1. "Saldo Atual" = Entradas - despesas/faturas já vencidas (data <= hoje)
+ * 2. "Saídas Previstas" = despesas/faturas com data futura
+ * 3. Real-time updates when transactions are added/edited/deleted
  */
 
 import { getTransactionsByMonth, Transaction } from './storage';
 import { getInvestmentsForCoverage, calculateDailyYield, calculateNetYield } from './investments';
 import { getLocalDateString, parseLocalDate, getLocalMonth, addDaysToDate } from './dateUtils';
+import { ConsolidatedInvoice } from './invoiceUtils';
+
+type StatementItem = Transaction | ConsolidatedInvoice;
+
+function isConsolidatedInvoice(item: StatementItem): item is ConsolidatedInvoice {
+  return 'isConsolidatedInvoice' in item && item.isConsolidatedInvoice === true;
+}
 
 /**
- * Calculate projected balance for each day of the month
- * Returns the current day's projected balance and daily yield
+ * Calculate real-time balances from statement items
+ * 
+ * - currentBalance: Entradas - despesas/faturas já vencidas (data <= hoje)
+ * - projectedExpenses: total de despesas/faturas com data futura
+ */
+export async function calculateRealTimeBalances(
+  month: string,
+  statementItems: StatementItem[]
+): Promise<{
+  currentBalance: number;
+  projectedExpenses: number;
+  dailyYield: number;
+  totalIncome: number;
+  totalExpense: number;
+}> {
+  const today = getLocalDateString();
+  
+  let totalIncome = 0;
+  let pastExpenses = 0; // Despesas/faturas já vencidas (data <= hoje)
+  let futureExpenses = 0; // Despesas/faturas futuras (data > hoje)
+  
+  for (const item of statementItems) {
+    if (isConsolidatedInvoice(item)) {
+      // Fatura consolidada: usar dueDate para determinar se já venceu
+      const amount = item.total;
+      if (item.dueDate <= today) {
+        pastExpenses += amount;
+      } else {
+        futureExpenses += amount;
+      }
+    } else {
+      // Transação normal
+      const tx = item as Transaction;
+      const amount = Math.abs(tx.amount);
+      
+      if (tx.type === 'income') {
+        // Entradas: contar todas (não importa a data para entradas)
+        totalIncome += amount;
+      } else {
+        // Despesas: separar por data
+        if (tx.date <= today) {
+          pastExpenses += amount;
+        } else {
+          futureExpenses += amount;
+        }
+      }
+    }
+  }
+  
+  // Saldo Atual = Entradas - despesas/faturas já vencidas
+  const currentBalance = totalIncome - pastExpenses;
+  
+  // Calculate daily yield based on current balance (if positive)
+  let dailyYield = 0;
+  if (currentBalance > 0) {
+    const coverageInvestments = await getInvestmentsForCoverage();
+    if (coverageInvestments.length > 0) {
+      const yieldRate = coverageInvestments[0].yieldRate;
+      const grossYield = calculateDailyYield(currentBalance, yieldRate);
+      const { net } = calculateNetYield(grossYield);
+      dailyYield = net;
+    }
+  }
+  
+  return {
+    currentBalance,
+    projectedExpenses: futureExpenses,
+    dailyYield,
+    totalIncome,
+    totalExpense: pastExpenses + futureExpenses,
+  };
+}
+
+/**
+ * Legacy function for compatibility
+ * @deprecated Use calculateRealTimeBalances instead
  */
 export async function calculateProjectedBalance(
   month: string,
@@ -26,16 +107,11 @@ export async function calculateProjectedBalance(
   paidExpenses: number;
 }> {
   const today = getLocalDateString();
-  const currentMonth = getLocalMonth();
-  
-  // Get all transactions for the month
   const transactions = await getTransactionsByMonth(month);
   
-  // Separate income and expenses
   const incomes = transactions.filter(tx => tx.type === 'income');
   const expenses = transactions.filter(tx => tx.type === 'expense');
   
-  // Calculate paid expenses (date <= today) and remaining expenses (date > today)
   let paidExpenses = 0;
   let remainingExpenses = 0;
   
@@ -48,7 +124,6 @@ export async function calculateProjectedBalance(
     }
   }
   
-  // Calculate total income received (date <= today)
   let receivedIncome = 0;
   for (const income of incomes) {
     if (income.date <= today) {
@@ -56,16 +131,11 @@ export async function calculateProjectedBalance(
     }
   }
   
-  // Current actual balance (what we have right now)
   const currentBalance = receivedIncome - paidExpenses;
-  
-  // Projected balance (accounting for future expenses)
   const projectedBalance = currentBalance - remainingExpenses;
   
-  // Calculate daily yield based on current balance (if positive)
   let dailyYield = 0;
   if (currentBalance > 0) {
-    // Get the authorized investment's yield rate to apply to income balance
     const coverageInvestments = await getInvestmentsForCoverage();
     if (coverageInvestments.length > 0) {
       const yieldRate = coverageInvestments[0].yieldRate;

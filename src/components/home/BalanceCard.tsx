@@ -4,50 +4,48 @@ import { TrendingUp, TrendingDown, Wallet, Calendar, Sparkles } from 'lucide-rea
 import { cn } from '@/lib/utils';
 
 interface BalanceCardProps {
-  balance: number;
+  /** Saldo Atual: Entradas - despesas/faturas já vencidas */
+  currentBalance: number;
+  /** Saídas previstas: total de despesas/faturas futuras */
+  projectedExpenses: number;
   income: number;
   expense: number;
   loading?: boolean;
-  projectedBalance?: number;
   dailyYield?: number;
-  remainingExpenses?: number;
 }
 
 export function BalanceCard({ 
-  balance, 
+  currentBalance, 
+  projectedExpenses,
   income, 
   expense, 
   loading,
-  projectedBalance,
   dailyYield = 0,
-  remainingExpenses = 0,
 }: BalanceCardProps) {
-  // Use projected balance if available, otherwise use regular balance
-  const displayBalance = projectedBalance !== undefined ? projectedBalance : balance;
-  const hasProjection = projectedBalance !== undefined && remainingExpenses > 0;
+  const hasFutureExpenses = projectedExpenses > 0;
   
   return (
     <Card className="bg-gradient-to-br from-primary/20 to-accent/10 border-primary/20">
       <CardContent className="pt-6">
-        {/* Main Balance */}
+        {/* Main Balance - Saldo Atual */}
         <div className="text-center mb-4">
           <p className="text-sm text-muted-foreground mb-1">
-            {hasProjection ? 'Saldo Projetado' : 'Saldo Atual'}
+            Saldo Atual
           </p>
           <p
             className={cn(
               'text-3xl font-bold tabular-nums',
-              displayBalance >= 0 ? 'text-success' : 'text-destructive'
+              currentBalance >= 0 ? 'text-success' : 'text-destructive'
             )}
           >
-            {loading ? '...' : formatCurrency(displayBalance)}
+            {loading ? '...' : formatCurrency(currentBalance)}
           </p>
           
-          {/* Show remaining expenses indicator */}
-          {hasProjection && remainingExpenses > 0 && (
+          {/* Show future expenses indicator */}
+          {hasFutureExpenses && (
             <div className="flex items-center justify-center gap-1 mt-1 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
-              <span>Contas a vencer: {formatCurrency(remainingExpenses)}</span>
+              <span>Contas a vencer: {formatCurrency(projectedExpenses)}</span>
             </div>
           )}
           
@@ -62,7 +60,7 @@ export function BalanceCard({
 
         {/* Income / Expense Row */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Income */}
+          {/* Income - Entradas */}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-success/20">
               <TrendingUp className="h-5 w-5 text-success" />
@@ -75,13 +73,13 @@ export function BalanceCard({
             </div>
           </div>
 
-          {/* Expense */}
+          {/* Expense - Saídas Previstas */}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/20">
               <TrendingDown className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Saídas</p>
+              <p className="text-xs text-muted-foreground">Saídas previstas</p>
               <p className="font-semibold text-destructive tabular-nums">
                 {loading ? '...' : formatCurrency(expense)}
               </p>
