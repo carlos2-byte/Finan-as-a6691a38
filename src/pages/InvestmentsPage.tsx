@@ -231,7 +231,7 @@ export default function InvestmentsPage() {
       }
     >
       <ScrollArea className="h-[calc(100vh-140px)]">
-        <div className="space-y-6 pb-4">
+        <div className="space-y-3 pb-4">
           {/* Total Card */}
           <Card className="bg-primary/10 border-primary/20">
             <CardContent className="pt-6">
@@ -265,13 +265,15 @@ export default function InvestmentsPage() {
           </Card>
 
           {/* Add Investment Button */}
-          <Button
-            className="w-full rounded-xl h-12"
-            onClick={() => setShowAddSheet(true)}
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Adicionar Investimento
-          </Button>
+          <div className="flex justify-center">
+            <Button
+              className="rounded-full px-4 h-9 shadow-lg"
+              onClick={() => setShowAddSheet(true)}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Adicionar
+            </Button>
+          </div>
 
           {/* Investments List */}
           {investments.length === 0 ? (

@@ -260,8 +260,7 @@ export default function HomePage() {
         </div>
       }
     >
-      <div className="space-y-6">
-        {/* Coverage Alert */}
+      <div className="space-y-3">
         {coverageInfo && (
           <CoverageAlert
             amount={coverageInfo.amount}
@@ -290,7 +289,7 @@ export default function HomePage() {
         />
 
         {/* Add Transaction Button */}
-        <div className="flex justify-center -my-2">
+        <div className="flex justify-center">
           <Button
             className="rounded-full px-4 h-9 shadow-lg"
             onClick={() => {
@@ -302,8 +301,6 @@ export default function HomePage() {
             Adicionar
           </Button>
         </div>
-
-        {/* Statement */}
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Extrato</h2>
