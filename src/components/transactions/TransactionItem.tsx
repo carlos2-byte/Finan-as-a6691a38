@@ -17,6 +17,7 @@ import {
   Repeat,
   Pencil,
   Calendar,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -36,6 +37,9 @@ interface TransactionItemProps {
   onDelete?: (transaction: Transaction) => void;
   onEdit?: (transaction: Transaction) => void;
   showActions?: boolean;
+  isPaid?: boolean;
+  isOverdue?: boolean;
+  onTogglePaid?: (id: string) => void;
 }
 
 /**
@@ -66,6 +70,9 @@ export function TransactionItem({
   onDelete,
   onEdit,
   showActions = false,
+  isPaid = false,
+  isOverdue = false,
+  onTogglePaid,
 }: TransactionItemProps) {
   const [displayDate, setDisplayDate] = useState<string>(transaction.date);
   const [cardName, setCardName] = useState<string | null>(null);
@@ -94,8 +101,37 @@ export function TransactionItem({
     calculateDate();
   }, [transaction, isCardPayment]);
 
+  // Only show status indicator for expenses
+  const showStatusIndicator = transaction.type === 'expense' && onTogglePaid;
+
   return (
     <div className="flex items-center gap-2 py-2 group">
+      {/* Payment status indicator */}
+      {showStatusIndicator && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePaid?.(transaction.id);
+          }}
+          className="relative flex-shrink-0 touch-manipulation"
+          title={isPaid ? 'Marcar como não pago' : 'Marcar como pago'}
+        >
+          <div
+            className={cn(
+              'h-3 w-3 rounded-full border-2 transition-colors',
+              isPaid 
+                ? 'bg-success border-success' 
+                : isOverdue
+                  ? 'bg-destructive border-destructive animate-pulse'
+                  : 'bg-warning border-warning'
+            )}
+          />
+          {isOverdue && !isPaid && (
+            <AlertTriangle className="absolute -top-1 -right-1 h-2.5 w-2.5 text-destructive" />
+          )}
+        </button>
+      )}
+
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
         style={{ backgroundColor: category?.color ? `${category.color}20` : 'hsl(var(--muted))' }}
