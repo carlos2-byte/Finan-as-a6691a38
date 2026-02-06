@@ -22,6 +22,7 @@ export interface Investment {
   initialAmount: number;
   currentAmount: number;
   yieldRate: number; // Annual rate in percentage (e.g., 6.5)
+  cdiBonusPercent?: number; // CDI bonus percentage (e.g., 115 means 115% of CDI)
   startDate: string; // YYYY-MM-DD
   lastYieldDate?: string; // Last date yield was calculated
   isActive: boolean;
@@ -88,7 +89,8 @@ export async function createInvestment(
   amount: number,
   yieldRate?: number,
   startDate?: string,
-  type?: string
+  type?: string,
+  cdiBonusPercent?: number
 ): Promise<Investment> {
   const investments = await defaultAdapter.getItem<Record<string, Investment>>(INVESTMENTS_KEY, {}) ?? {};
   const defaultRate = await getDefaultYieldRate();
@@ -100,6 +102,7 @@ export async function createInvestment(
     initialAmount: amount,
     currentAmount: amount,
     yieldRate: yieldRate ?? defaultRate,
+    cdiBonusPercent,
     startDate: startDate ?? getLocalDateString(),
     isActive: true,
     createdAt: new Date().toISOString(),
@@ -124,7 +127,7 @@ export async function updateInvestment(investment: Investment): Promise<void> {
  * Update investment yield rate (prospective only - doesn't recalculate past)
  * Records the change in yieldRateHistory so future calculations use the new rate
  */
-export async function updateInvestmentYieldRate(id: string, newRate: number): Promise<void> {
+export async function updateInvestmentYieldRate(id: string, newRate: number, cdiBonusPercent?: number): Promise<void> {
   const investment = await getInvestmentById(id);
   if (!investment) return;
   
@@ -139,6 +142,7 @@ export async function updateInvestmentYieldRate(id: string, newRate: number): Pr
   };
   
   investment.yieldRate = newRate;
+  investment.cdiBonusPercent = cdiBonusPercent;
   investment.yieldRateHistory = investment.yieldRateHistory || [];
   investment.yieldRateHistory.push(rateChange);
   
@@ -223,12 +227,26 @@ export async function addToInvestment(id: string, amount: number): Promise<void>
   await updateInvestment(investment);
 }
 
+const BUSINESS_DAYS_PER_YEAR = 252; // Standard for Brazilian market
+
+/**
+ * Calculate effective annual rate considering CDI bonus
+ * If cdiBonusPercent is provided, it represents percentage of CDI (e.g., 115 = 115% of CDI)
+ */
+export function calculateEffectiveRate(annualRate: number, cdiBonusPercent?: number): number {
+  if (cdiBonusPercent && cdiBonusPercent > 0) {
+    return annualRate * (cdiBonusPercent / 100);
+  }
+  return annualRate;
+}
+
 /**
  * Calculate DAILY yield from annual rate
- * Formula: (annualRate / 100) / 365
+ * Formula: (effectiveAnnualRate / 100) / 252 (business days)
  */
-export function calculateDailyYield(amount: number, annualRate: number): number {
-  const dailyRate = annualRate / 100 / 365;
+export function calculateDailyYield(amount: number, annualRate: number, cdiBonusPercent?: number): number {
+  const effectiveRate = calculateEffectiveRate(annualRate, cdiBonusPercent);
+  const dailyRate = effectiveRate / 100 / BUSINESS_DAYS_PER_YEAR;
   return amount * dailyRate;
 }
 
@@ -329,7 +347,7 @@ export async function processDailyYields(): Promise<number> {
         const yieldRate = getYieldRateForDate(currentDate);
         
         // Calculate yield for this day
-        const grossYield = calculateDailyYield(currentAmount, yieldRate);
+        const grossYield = calculateDailyYield(currentAmount, yieldRate, investment.cdiBonusPercent);
         const { gross, tax, net } = calculateNetYield(grossYield);
         
         const balanceBefore = currentAmount;
@@ -400,18 +418,18 @@ export async function getTotalInvested(): Promise<number> {
 /**
  * Get daily yield estimate for an investment
  */
-export function getDailyYieldEstimate(amount: number, annualRate: number): { gross: number; net: number } {
-  const gross = calculateDailyYield(amount, annualRate);
+export function getDailyYieldEstimate(amount: number, annualRate: number, cdiBonusPercent?: number): { gross: number; net: number } {
+  const gross = calculateDailyYield(amount, annualRate, cdiBonusPercent);
   const { net } = calculateNetYield(gross);
   return { gross, net };
 }
 
 /**
- * Get monthly yield estimate for an investment (30 days)
+ * Get monthly yield estimate for an investment (~21 business days per month)
  */
-export function getMonthlyYieldEstimate(amount: number, annualRate: number): { gross: number; net: number } {
-  const dailyGross = calculateDailyYield(amount, annualRate);
-  const gross = dailyGross * 30;
+export function getMonthlyYieldEstimate(amount: number, annualRate: number, cdiBonusPercent?: number): { gross: number; net: number } {
+  const dailyGross = calculateDailyYield(amount, annualRate, cdiBonusPercent);
+  const gross = dailyGross * 21; // ~21 business days per month
   const { net } = calculateNetYield(gross);
   return { gross, net };
 }
