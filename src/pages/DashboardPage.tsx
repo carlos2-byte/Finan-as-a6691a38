@@ -1,16 +1,31 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { useStatement, isConsolidatedInvoice } from '@/hooks/useStatement';
 import { formatCurrency, getCurrentMonth } from '@/lib/formatters';
 import { getCategories } from '@/lib/storage';
-import { TrendingUp, TrendingDown, PiggyBank } from 'lucide-react';
+import { TrendingUp, TrendingDown, PiggyBank, Shield } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { calculateFutureCoverableExpenses } from '@/lib/investmentCoverage';
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(getCurrentMonth());
   const { items, totals, balanceData, loading } = useStatement(month);
+  const [futureCoverage, setFutureCoverage] = useState<{ total: number; items: Array<{ date: string; description: string; amount: number }> }>({ total: 0, items: [] });
+
+  // Calculate future expenses that will be covered by investment
+  useEffect(() => {
+    const calculateCoverage = async () => {
+      if (items.length === 0) {
+        setFutureCoverage({ total: 0, items: [] });
+        return;
+      }
+      const { totalCoverable, coverableItems } = await calculateFutureCoverableExpenses(items);
+      setFutureCoverage({ total: totalCoverable, items: coverableItems });
+    };
+    calculateCoverage();
+  }, [items]);
 
   // Category breakdown for current month - extract from statement items
   const { categoryData, categoryTotals } = useMemo(() => {
@@ -96,10 +111,18 @@ export default function DashboardPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Total de Despesas</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
               <p className="text-3xl font-bold text-destructive tabular-nums">
                 {formatCurrency(totalExpenses)}
               </p>
+              {futureCoverage.total > 0 && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-primary/10 p-2 rounded">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <span>
+                    {formatCurrency(futureCoverage.total)} será coberto por investimento
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -181,6 +204,17 @@ export default function DashboardPage() {
                     -{formatCurrency(totals.expense)}
                   </span>
                 </div>
+                {futureCoverage.total > 0 && (
+                  <div className="flex justify-between py-2 border-b border-border/50">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Shield className="h-3 w-3 text-primary" />
+                      Cobertura pendente (investimento)
+                    </span>
+                    <span className="font-medium text-primary tabular-nums">
+                      {formatCurrency(futureCoverage.total)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between py-2 font-medium">
                   <span>Saldo Atual</span>
                   <span className={currentBalance >= 0 ? 'text-success' : 'text-destructive'}>
