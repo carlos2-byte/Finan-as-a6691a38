@@ -65,8 +65,12 @@ export default function InvestmentsPage() {
   const [newType, setNewType] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newRate, setNewRate] = useState('');
+  const [hasCdiBonus, setHasCdiBonus] = useState(false);
+  const [cdiBonusPercent, setCdiBonusPercent] = useState('');
   const [actionAmount, setActionAmount] = useState('');
   const [editRate, setEditRate] = useState('');
+  const [editHasCdiBonus, setEditHasCdiBonus] = useState(false);
+  const [editCdiBonusPercent, setEditCdiBonusPercent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -77,12 +81,15 @@ export default function InvestmentsPage() {
     setIsSubmitting(true);
     try {
       const rate = newRate ? parseFloat(newRate.replace(',', '.')) : undefined;
-      await create(newName.trim(), amount, rate, undefined, newType.trim() || undefined);
+      const bonus = hasCdiBonus && cdiBonusPercent ? parseFloat(cdiBonusPercent.replace(',', '.')) : undefined;
+      await create(newName.trim(), amount, rate, undefined, newType.trim() || undefined, bonus);
       toast({ title: 'Investimento criado!' });
       setNewName('');
       setNewType('');
       setNewAmount('');
       setNewRate('');
+      setHasCdiBonus(false);
+      setCdiBonusPercent('');
       setShowAddSheet(false);
     } finally {
       setIsSubmitting(false);
@@ -162,12 +169,15 @@ export default function InvestmentsPage() {
 
     setIsSubmitting(true);
     try {
-      await updateYieldRate(selectedInvestment.id, rate);
+      const bonus = editHasCdiBonus && editCdiBonusPercent ? parseFloat(editCdiBonusPercent.replace(',', '.')) : undefined;
+      await updateYieldRate(selectedInvestment.id, rate, bonus);
       toast({ 
         title: 'Taxa atualizada!',
         description: 'O novo rendimento será aplicado a partir de hoje.'
       });
       setEditRate('');
+      setEditHasCdiBonus(false);
+      setEditCdiBonusPercent('');
       setShowEditRateSheet(false);
       setSelectedInvestment(null);
     } finally {
@@ -197,11 +207,11 @@ export default function InvestmentsPage() {
   // Calculate totals for display
   const totalDailyYield = investments
     .filter(i => i.isActive)
-    .reduce((sum, inv) => sum + getDailyYieldEstimate(inv.currentAmount, inv.yieldRate).net, 0);
+    .reduce((sum, inv) => sum + getDailyYieldEstimate(inv.currentAmount, inv.yieldRate, inv.cdiBonusPercent).net, 0);
 
   const totalMonthlyYield = investments
     .filter(i => i.isActive)
-    .reduce((sum, inv) => sum + getMonthlyYieldEstimate(inv.currentAmount, inv.yieldRate).net, 0);
+    .reduce((sum, inv) => sum + getMonthlyYieldEstimate(inv.currentAmount, inv.yieldRate, inv.cdiBonusPercent).net, 0);
 
   return (
     <PageContainer
@@ -269,8 +279,8 @@ export default function InvestmentsPage() {
           ) : (
             <div className="space-y-3">
               {investments.map(inv => {
-                const dailyYield = getDailyYieldEstimate(inv.currentAmount, inv.yieldRate);
-                const monthlyYield = getMonthlyYieldEstimate(inv.currentAmount, inv.yieldRate);
+                const dailyYield = getDailyYieldEstimate(inv.currentAmount, inv.yieldRate, inv.cdiBonusPercent);
+                const monthlyYield = getMonthlyYieldEstimate(inv.currentAmount, inv.yieldRate, inv.cdiBonusPercent);
                 const totalYield = inv.currentAmount - inv.initialAmount;
                 
                 return (
@@ -283,6 +293,11 @@ export default function InvestmentsPage() {
                             {inv.type && (
                               <span className="text-xs bg-secondary px-2 py-0.5 rounded">
                                 {inv.type}
+                              </span>
+                            )}
+                            {inv.cdiBonusPercent && (
+                              <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+                                {inv.cdiBonusPercent}% CDI
                               </span>
                             )}
                             {inv.canCoverNegativeBalance && (
@@ -400,6 +415,8 @@ export default function InvestmentsPage() {
                           onClick={() => {
                             setSelectedInvestment(inv);
                             setEditRate(String(inv.yieldRate));
+                            setEditHasCdiBonus(!!inv.cdiBonusPercent);
+                            setEditCdiBonusPercent(inv.cdiBonusPercent ? String(inv.cdiBonusPercent) : '');
                             setShowEditRateSheet(true);
                           }}
                         >
@@ -468,7 +485,7 @@ export default function InvestmentsPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Taxa de Rendimento (% a.a.)</Label>
+              <Label>Taxa CDI de Referência (% a.a.)</Label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -476,11 +493,36 @@ export default function InvestmentsPage() {
                 onChange={e => setNewRate(e.target.value)}
                 placeholder={`Padrão: ${defaultRate}%`}
               />
-              <p className="text-xs text-muted-foreground">
-                O rendimento é calculado diariamente e creditado no dia seguinte.
-                20% de imposto é deduzido automaticamente.
-              </p>
             </div>
+            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+              <Label htmlFor="has-cdi-bonus" className="cursor-pointer">
+                Existe bônus acima do CDI?
+              </Label>
+              <Switch
+                id="has-cdi-bonus"
+                checked={hasCdiBonus}
+                onCheckedChange={setHasCdiBonus}
+              />
+            </div>
+            {hasCdiBonus && (
+              <div className="space-y-2">
+                <Label>Percentual do CDI (%)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={cdiBonusPercent}
+                  onChange={e => setCdiBonusPercent(e.target.value)}
+                  placeholder="Ex: 115 (para 115% do CDI)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Informe o percentual sobre o CDI. Ex: 115 significa 115% do CDI.
+                </p>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Rendimento calculado com base em 252 dias úteis/ano.
+              20% de imposto é deduzido automaticamente.
+            </p>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Criando...' : 'Criar Investimento'}
             </Button>
@@ -506,7 +548,7 @@ export default function InvestmentsPage() {
               />
               <p className="text-xs text-muted-foreground">
                 Novos investimentos usarão esta taxa por padrão.
-                Rendimento diário = (taxa anual / 365) × saldo
+                Rendimento diário = (taxa anual / 252) × saldo
               </p>
             </div>
             <Button type="submit" className="w-full">
@@ -524,7 +566,7 @@ export default function InvestmentsPage() {
           </SheetHeader>
           <form onSubmit={handleEditInvestmentRate} className="space-y-4">
             <div className="space-y-2">
-              <Label>Nova Taxa Anual (%)</Label>
+              <Label>Nova Taxa CDI (% a.a.)</Label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -533,11 +575,36 @@ export default function InvestmentsPage() {
                 placeholder="Ex: 7.5"
                 required
               />
-              <p className="text-xs text-muted-foreground">
-                <strong>Importante:</strong> A nova taxa será aplicada apenas a partir de hoje.
-                O histórico de rendimentos passados não será recalculado.
-              </p>
             </div>
+            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+              <Label htmlFor="edit-cdi-bonus" className="cursor-pointer">
+                Existe bônus acima do CDI?
+              </Label>
+              <Switch
+                id="edit-cdi-bonus"
+                checked={editHasCdiBonus}
+                onCheckedChange={setEditHasCdiBonus}
+              />
+            </div>
+            {editHasCdiBonus && (
+              <div className="space-y-2">
+                <Label>Percentual do CDI (%)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={editCdiBonusPercent}
+                  onChange={e => setEditCdiBonusPercent(e.target.value)}
+                  placeholder="Ex: 115 (para 115% do CDI)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Informe o percentual sobre o CDI. Ex: 115 significa 115% do CDI.
+                </p>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              <strong>Importante:</strong> A nova taxa será aplicada apenas a partir de hoje.
+              O histórico de rendimentos passados não será recalculado.
+            </p>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Salvando...' : 'Atualizar Taxa'}
             </Button>

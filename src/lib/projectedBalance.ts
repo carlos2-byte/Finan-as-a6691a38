@@ -76,8 +76,8 @@ export async function calculateRealTimeBalances(
   if (currentBalance > 0) {
     const coverageInvestments = await getInvestmentsForCoverage();
     if (coverageInvestments.length > 0) {
-      const yieldRate = coverageInvestments[0].yieldRate;
-      const grossYield = calculateDailyYield(currentBalance, yieldRate);
+      const inv = coverageInvestments[0];
+      const grossYield = calculateDailyYield(currentBalance, inv.yieldRate, inv.cdiBonusPercent);
       const { net } = calculateNetYield(grossYield);
       dailyYield = net;
     }
@@ -138,8 +138,8 @@ export async function calculateProjectedBalance(
   if (currentBalance > 0) {
     const coverageInvestments = await getInvestmentsForCoverage();
     if (coverageInvestments.length > 0) {
-      const yieldRate = coverageInvestments[0].yieldRate;
-      const grossYield = calculateDailyYield(currentBalance, yieldRate);
+      const inv = coverageInvestments[0];
+      const grossYield = calculateDailyYield(currentBalance, inv.yieldRate, inv.cdiBonusPercent);
       const { net } = calculateNetYield(grossYield);
       dailyYield = net;
     }
@@ -190,13 +190,12 @@ export async function calculateAccumulatedYield(month: string): Promise<number> 
     return 0;
   }
   
-  // Get coverage investment for yield rate
   const coverageInvestments = await getInvestmentsForCoverage();
   if (coverageInvestments.length === 0) {
     return 0;
   }
   
-  const yieldRate = coverageInvestments[0].yieldRate;
+  const inv = coverageInvestments[0];
   
   // Determine the range of dates to calculate
   const monthStart = `${month}-01`;
@@ -225,9 +224,8 @@ export async function calculateAccumulatedYield(month: string): Promise<number> 
       }
     }
     
-    // Only add yield if balance is positive
     if (balance > 0) {
-      const grossYield = calculateDailyYield(balance, yieldRate);
+      const grossYield = calculateDailyYield(balance, inv.yieldRate, inv.cdiBonusPercent);
       const { net } = calculateNetYield(grossYield);
       totalYield += net;
     }

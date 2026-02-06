@@ -54,9 +54,10 @@ export function useInvestments() {
     amount: number,
     yieldRate?: number,
     startDate?: string,
-    type?: string
+    type?: string,
+    cdiBonusPercent?: number
   ) => {
-    const investment = await createInvestment(name, amount, yieldRate, startDate, type);
+    const investment = await createInvestment(name, amount, yieldRate, startDate, type, cdiBonusPercent);
     await loadInvestments();
     return investment;
   }, [loadInvestments]);
@@ -82,8 +83,8 @@ export function useInvestments() {
     setDefaultRate(rate);
   }, []);
 
-  const updateYieldRate = useCallback(async (id: string, newRate: number) => {
-    await updateInvestmentYieldRate(id, newRate);
+  const updateYieldRate = useCallback(async (id: string, newRate: number, cdiBonusPercent?: number) => {
+    await updateInvestmentYieldRate(id, newRate, cdiBonusPercent);
     await loadInvestments();
   }, [loadInvestments]);
 
