@@ -288,10 +288,10 @@ export default function HomePage() {
           dailyYield={balanceData?.dailyYield ?? 0}
         />
 
-        {/* Add Transaction Button */}
-        <div className="flex justify-center">
+        {/* Add Transaction Button - overlapping between card and list */}
+        <div className="flex justify-center -mt-4 -mb-2 relative z-10">
           <Button
-            className="rounded-full px-4 h-9 shadow-lg"
+            className="rounded-full px-6 h-10 shadow-lg"
             onClick={() => {
               setTransactionToEdit(null);
               setShowAddSheet(true);

@@ -263,10 +263,10 @@ export default function InvestmentsPage() {
           </CardContent>
         </Card>
 
-        {/* Add Investment Button - between Total Card and List */}
-        <div className="flex justify-center">
+        {/* Add Investment Button - overlapping between card and list */}
+        <div className="flex justify-center -mt-4 -mb-2 relative z-10">
           <Button
-            className="rounded-full px-4 h-9 shadow-lg"
+            className="rounded-full px-6 h-10 shadow-lg"
             onClick={() => setShowAddSheet(true)}
           >
             <Plus className="h-4 w-4 mr-1" />
