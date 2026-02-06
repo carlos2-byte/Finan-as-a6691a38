@@ -289,7 +289,7 @@ export default function HomePage() {
         />
 
         {/* Add Transaction Button - overlapping between card and list */}
-        <div className="flex justify-center -mt-4 -mb-2 relative z-10">
+        <div className="flex justify-center -mt-7 -mb-3 relative z-10">
           <Button
             className="rounded-full px-6 h-10 shadow-lg"
             onClick={() => {
