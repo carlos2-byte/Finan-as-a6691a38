@@ -4,9 +4,7 @@ import {
   Sun,
   Download,
   Upload,
-  Smartphone,
   DollarSign,
-  Check,
   Lock,
   Unlock,
   Trash2,
@@ -238,28 +236,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* PWA Install */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Instalar App</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-start gap-3">
-                <Smartphone className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Instale o FinançasPRO no seu celular para acesso rápido e uso
-                    offline. No navegador, toque em "Compartilhar" e depois em
-                    "Adicionar à Tela Inicial".
-                  </p>
-                  <div className="flex items-center gap-2 text-sm text-success">
-                    <Check className="h-4 w-4" />
-                    <span>App funciona 100% offline</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Data Management */}
           <Card>
