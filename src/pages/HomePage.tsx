@@ -18,6 +18,7 @@ import { useStatement, isConsolidatedInvoice } from '@/hooks/useStatement';
 import { useTransactions, TransferResult } from '@/hooks/useTransactions';
 import { useCreditCards } from '@/hooks/useCreditCards';
 import { useInvestments } from '@/hooks/useInvestments';
+import { useSettings } from '@/hooks/useSettings';
 import { getCurrentMonth } from '@/lib/formatters';
 import { Transaction } from '@/lib/storage';
 import { ConsolidatedInvoice } from '@/lib/invoiceUtils';
@@ -47,6 +48,7 @@ export default function HomePage() {
   const { addTransaction, updateTransaction, removeTransaction } = useTransactions(month);
   const { cards } = useCreditCards();
   const { refresh: refreshInvestments } = useInvestments();
+  const { settings, toggleBalanceYield } = useSettings();
 
   // Check and record month-end balance when viewing past months
   useEffect(() => {
@@ -286,6 +288,8 @@ export default function HomePage() {
           expense={totals.expense}
           loading={loading}
           dailyYield={balanceData?.dailyYield ?? 0}
+          balanceYieldEnabled={settings.balanceYieldEnabled}
+          onToggleBalanceYield={toggleBalanceYield}
         />
 
         {/* Add Transaction Button - overlapping between card and list */}

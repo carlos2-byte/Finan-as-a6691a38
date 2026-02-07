@@ -49,6 +49,7 @@ export interface AppSettings {
   currency: string;
   currencySymbol: string;
   locale?: string;
+  balanceYieldEnabled?: boolean;
 }
 
 const TRANSACTIONS_KEY = 'transactions';

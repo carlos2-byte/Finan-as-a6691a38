@@ -1,6 +1,7 @@
 import { formatCurrency } from '@/lib/formatters';
 import { Card, CardContent } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Wallet, Calendar, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, TrendingDown, Calendar, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BalanceCardProps {
@@ -12,6 +13,8 @@ interface BalanceCardProps {
   expense: number;
   loading?: boolean;
   dailyYield?: number;
+  balanceYieldEnabled?: boolean;
+  onToggleBalanceYield?: () => void;
 }
 
 export function BalanceCard({ 
@@ -21,6 +24,8 @@ export function BalanceCard({
   expense, 
   loading,
   dailyYield = 0,
+  balanceYieldEnabled = false,
+  onToggleBalanceYield,
 }: BalanceCardProps) {
   const hasFutureExpenses = projectedExpenses > 0;
   
@@ -29,9 +34,27 @@ export function BalanceCard({
       <CardContent className="pt-6">
         {/* Main Balance - Saldo Atual */}
         <div className="text-center mb-4">
-          <p className="text-sm text-muted-foreground mb-1">
-            Saldo Atual
-          </p>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            {onToggleBalanceYield && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-6 w-6 rounded-full transition-colors",
+                  balanceYieldEnabled 
+                    ? "bg-success/20 text-success hover:bg-success/30" 
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+                onClick={onToggleBalanceYield}
+                title={balanceYieldEnabled ? "Rendimento ativo" : "Rendimento inativo"}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Saldo Atual
+            </p>
+          </div>
           <p
             className={cn(
               'text-3xl font-bold tabular-nums',
@@ -50,7 +73,7 @@ export function BalanceCard({
           )}
           
           {/* Show daily yield indicator */}
-          {dailyYield > 0 && (
+          {dailyYield > 0 && balanceYieldEnabled && (
             <div className="flex items-center justify-center gap-1 mt-1 text-xs text-success">
               <Sparkles className="h-3 w-3" />
               <span>Rendimento diário: +{formatCurrency(dailyYield)}</span>
