@@ -306,7 +306,7 @@ export default function InvestmentsPage() {
                             )}
                             {inv.cdiBonusPercent && (
                               <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
-                                {inv.cdiBonusPercent}% CDI
+                                {inv.cdiBonusPercent}%
                               </span>
                             )}
                             {inv.canCoverNegativeBalance && (
@@ -483,7 +483,7 @@ export default function InvestmentsPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Taxa CDI de Referência (% a.a.)</Label>
+              <Label>Taxa de Referência (% a.a.)</Label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -494,7 +494,7 @@ export default function InvestmentsPage() {
             </div>
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
               <Label htmlFor="has-cdi-bonus" className="cursor-pointer">
-                Existe bônus acima do CDI?
+                Existe bônus acima da %?
               </Label>
               <Switch
                 id="has-cdi-bonus"
@@ -504,16 +504,16 @@ export default function InvestmentsPage() {
             </div>
             {hasCdiBonus && (
               <div className="space-y-2">
-                <Label>Percentual do CDI (%)</Label>
+                <Label>Percentual da (%)</Label>
                 <Input
                   type="text"
                   inputMode="decimal"
                   value={cdiBonusPercent}
                   onChange={e => setCdiBonusPercent(e.target.value)}
-                  placeholder="Ex: 115 (para 115% do CDI)"
+                  placeholder="Ex: 115 (para 115%)"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Informe o percentual sobre o CDI. Ex: 115 significa 115% do CDI.
+                  Informe o percentual. Ex: 115 significa 115% da taxa.
                 </p>
               </div>
             )}
@@ -564,7 +564,7 @@ export default function InvestmentsPage() {
           </SheetHeader>
           <form onSubmit={handleEditInvestmentRate} className="space-y-4">
             <div className="space-y-2">
-              <Label>Nova Taxa CDI (% a.a.)</Label>
+              <Label>Nova Taxa (% a.a.)</Label>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -576,7 +576,7 @@ export default function InvestmentsPage() {
             </div>
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
               <Label htmlFor="edit-cdi-bonus" className="cursor-pointer">
-                Existe bônus acima do CDI?
+                Existe bônus acima da %?
               </Label>
               <Switch
                 id="edit-cdi-bonus"
@@ -586,16 +586,16 @@ export default function InvestmentsPage() {
             </div>
             {editHasCdiBonus && (
               <div className="space-y-2">
-                <Label>Percentual do CDI (%)</Label>
+                <Label>Percentual da (%)</Label>
                 <Input
                   type="text"
                   inputMode="decimal"
                   value={editCdiBonusPercent}
                   onChange={e => setEditCdiBonusPercent(e.target.value)}
-                  placeholder="Ex: 115 (para 115% do CDI)"
+                  placeholder="Ex: 115 (para 115%)"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Informe o percentual sobre o CDI. Ex: 115 significa 115% do CDI.
+                  Informe o percentual. Ex: 115 significa 115% da taxa.
                 </p>
               </div>
             )}
