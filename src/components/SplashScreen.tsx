@@ -33,25 +33,36 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       {/* Pig animation overlay */}
       {showPig && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          {/* Bank vault doors - open */}
-          <div className="absolute right-4 flex">
-            {/* Left door - opened outward */}
-            <div className="w-16 h-28 bg-gradient-to-r from-yellow-600 to-yellow-500 rounded-l-lg border-4 border-yellow-700 flex items-center justify-center transform -rotate-[60deg] origin-right shadow-xl">
-              <span className="text-yellow-900 text-3xl font-bold transform rotate-[60deg]">$</span>
-              {/* Door details */}
-              <div className="absolute inset-2 border-2 border-yellow-700 rounded-l opacity-50"></div>
+          {/* Stacks of money at the end */}
+          <div className="absolute right-6 flex flex-col items-center gap-1">
+            {/* Money stack 1 */}
+            <div className="flex flex-col -space-y-1">
+              <div className="w-14 h-6 bg-gradient-to-r from-green-600 to-green-500 rounded-sm border border-green-700 flex items-center justify-center shadow-md">
+                <span className="text-green-900 text-xs font-bold">$100</span>
+              </div>
+              <div className="w-14 h-6 bg-gradient-to-r from-green-500 to-green-400 rounded-sm border border-green-600 flex items-center justify-center shadow-md">
+                <span className="text-green-800 text-xs font-bold">$100</span>
+              </div>
+              <div className="w-14 h-6 bg-gradient-to-r from-green-600 to-green-500 rounded-sm border border-green-700 flex items-center justify-center shadow-md">
+                <span className="text-green-900 text-xs font-bold">$100</span>
+              </div>
             </div>
-            {/* Right door - opened outward */}
-            <div className="w-16 h-28 bg-gradient-to-l from-yellow-600 to-yellow-500 rounded-r-lg border-4 border-yellow-700 flex items-center justify-center transform rotate-[60deg] origin-left shadow-xl">
-              <span className="text-yellow-900 text-3xl font-bold transform -rotate-[60deg]">$</span>
-              {/* Door details */}
-              <div className="absolute inset-2 border-2 border-yellow-700 rounded-r opacity-50"></div>
+            {/* Money stack 2 */}
+            <div className="flex flex-col -space-y-1">
+              <div className="w-14 h-6 bg-gradient-to-r from-green-500 to-green-400 rounded-sm border border-green-600 flex items-center justify-center shadow-md">
+                <span className="text-green-800 text-xs font-bold">$100</span>
+              </div>
+              <div className="w-14 h-6 bg-gradient-to-r from-green-600 to-green-500 rounded-sm border border-green-700 flex items-center justify-center shadow-md">
+                <span className="text-green-900 text-xs font-bold">$100</span>
+              </div>
+              <div className="w-14 h-6 bg-gradient-to-r from-green-500 to-green-400 rounded-sm border border-green-600 flex items-center justify-center shadow-md">
+                <span className="text-green-800 text-xs font-bold">$100</span>
+              </div>
             </div>
-          </div>
-          
-          {/* Vault entrance (dark interior) */}
-          <div className="absolute right-12 w-20 h-24 bg-gradient-to-b from-gray-800 to-gray-900 rounded-sm -z-10 flex items-center justify-center">
-            <div className="text-yellow-400 text-4xl font-bold animate-pulse">$</div>
+            {/* Flying $ symbols */}
+            <div className="absolute -top-4 text-yellow-400 text-2xl font-bold animate-bounce">$</div>
+            <div className="absolute -top-2 -left-3 text-yellow-300 text-lg font-bold animate-pulse">$</div>
+            <div className="absolute -top-2 -right-3 text-yellow-300 text-lg font-bold animate-pulse delay-100">$</div>
           </div>
           
           {/* Pig running towards vault */}
