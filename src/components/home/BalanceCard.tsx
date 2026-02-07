@@ -1,7 +1,7 @@
 import { formatCurrency } from '@/lib/formatters';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, Calendar, Sparkles } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, Sparkles, PiggyBank } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BalanceCardProps {
@@ -48,7 +48,7 @@ export function BalanceCard({
                 onClick={onToggleBalanceYield}
                 title={balanceYieldEnabled ? "Rendimento ativo" : "Rendimento inativo"}
               >
-                <Sparkles className="h-3.5 w-3.5" />
+                <PiggyBank className="h-3.5 w-3.5" />
               </Button>
             )}
             <p className="text-sm text-muted-foreground">
