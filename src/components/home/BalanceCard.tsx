@@ -54,6 +54,12 @@ export function BalanceCard({
             <p className="text-sm text-muted-foreground">
               Saldo Atual
             </p>
+            {balanceYieldEnabled && (
+              <span className="flex items-center gap-1 text-xs font-medium text-success">
+                <PiggyBank className="h-3 w-3" />
+                RENDENDO
+              </span>
+            )}
           </div>
           <p
             className={cn(
