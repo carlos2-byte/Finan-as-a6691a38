@@ -7,6 +7,7 @@ export function useSettings() {
     currency: 'BRL',
     currencySymbol: 'R$',
     locale: 'pt-BR',
+    balanceYieldEnabled: false,
   });
   const [loading, setLoading] = useState(true);
 
@@ -53,11 +54,16 @@ export function useSettings() {
     updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' });
   }, [settings.theme, updateSettings]);
 
+  const toggleBalanceYield = useCallback(() => {
+    updateSettings({ balanceYieldEnabled: !settings.balanceYieldEnabled });
+  }, [settings.balanceYieldEnabled, updateSettings]);
+
   return {
     settings,
     loading,
     updateSettings,
     toggleTheme,
+    toggleBalanceYield,
     refresh: loadSettings,
   };
 }
