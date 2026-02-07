@@ -32,9 +32,30 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       
       {/* Pig animation overlay */}
       {showPig && (
-        <div className="absolute inset-0 pointer-events-none flex items-center">
-          {/* Pig running towards dollar */}
-          <div className="animate-pig-run flex items-center gap-2">
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          {/* Bank vault doors - open */}
+          <div className="absolute right-4 flex">
+            {/* Left door - opened outward */}
+            <div className="w-16 h-28 bg-gradient-to-r from-yellow-600 to-yellow-500 rounded-l-lg border-4 border-yellow-700 flex items-center justify-center transform -rotate-[60deg] origin-right shadow-xl">
+              <span className="text-yellow-900 text-3xl font-bold transform rotate-[60deg]">$</span>
+              {/* Door details */}
+              <div className="absolute inset-2 border-2 border-yellow-700 rounded-l opacity-50"></div>
+            </div>
+            {/* Right door - opened outward */}
+            <div className="w-16 h-28 bg-gradient-to-l from-yellow-600 to-yellow-500 rounded-r-lg border-4 border-yellow-700 flex items-center justify-center transform rotate-[60deg] origin-left shadow-xl">
+              <span className="text-yellow-900 text-3xl font-bold transform -rotate-[60deg]">$</span>
+              {/* Door details */}
+              <div className="absolute inset-2 border-2 border-yellow-700 rounded-r opacity-50"></div>
+            </div>
+          </div>
+          
+          {/* Vault entrance (dark interior) */}
+          <div className="absolute right-12 w-20 h-24 bg-gradient-to-b from-gray-800 to-gray-900 rounded-sm -z-10 flex items-center justify-center">
+            <div className="text-yellow-400 text-4xl font-bold animate-pulse">$</div>
+          </div>
+          
+          {/* Pig running towards vault */}
+          <div className="animate-pig-run flex items-center">
             {/* Green Pig with sunglasses */}
             <svg viewBox="0 0 100 80" className="w-20 h-16 drop-shadow-lg">
               {/* Body */}
@@ -67,11 +88,6 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
               <path d="M 15 40 Q 5 35 8 45 Q 12 55 5 50" stroke="#4ade80" strokeWidth="4" fill="none" strokeLinecap="round" />
             </svg>
           </div>
-          
-          {/* Dollar sign at the end */}
-          <div className="absolute right-8 text-5xl font-bold text-yellow-400 drop-shadow-lg animate-pulse">
-            $
-          </div>
         </div>
       )}
       
@@ -81,7 +97,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
             transform: translateX(-100px);
           }
           100% {
-            transform: translateX(calc(100vw - 120px));
+            transform: translateX(calc(50vw - 40px));
           }
         }
         
