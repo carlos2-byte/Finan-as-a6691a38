@@ -30,7 +30,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useInvestments, useInvestmentDetails } from '@/hooks/useInvestments';
+import { useInvestments } from '@/hooks/useInvestments';
+import { InvestmentDetailSheet } from '@/components/InvestmentDetailSheet';
 import { useTransactions } from '@/hooks/useTransactions';
 import { formatCurrency, getCurrentMonth } from '@/lib/formatters';
 import { formatDateBR } from '@/lib/dateUtils';
@@ -60,6 +61,7 @@ export default function InvestmentsPage() {
   const [showEditRateSheet, setShowEditRateSheet] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
   const [investmentToDelete, setInvestmentToDelete] = useState<Investment | null>(null);
+  const [detailInvestment, setDetailInvestment] = useState<Investment | null>(null);
 
   // Form states
   const [newName, setNewName] = useState('');
@@ -334,7 +336,7 @@ export default function InvestmentsPage() {
                 const monthlyTax = monthlyYield.gross - monthlyYield.net;
                 
                 return (
-                  <Card key={inv.id}>
+                  <Card key={inv.id} className="cursor-pointer" onClick={() => setDetailInvestment(inv)}>
                     <CardContent className="pt-4">
                       <div className="flex items-start justify-between mb-2">
                         <div>
@@ -374,7 +376,7 @@ export default function InvestmentsPage() {
                           variant="ghost"
                           size="icon"
                           className="text-destructive h-8 w-8"
-                          onClick={() => setInvestmentToDelete(inv)}
+                          onClick={(e) => { e.stopPropagation(); setInvestmentToDelete(inv); }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -448,7 +450,8 @@ export default function InvestmentsPage() {
                           variant="outline"
                           size="sm"
                           className="flex-1"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedInvestment(inv);
                             setShowDepositSheet(true);
                           }}
@@ -460,7 +463,8 @@ export default function InvestmentsPage() {
                           variant="outline"
                           size="sm"
                           className="flex-1"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedInvestment(inv);
                             setShowWithdrawSheet(true);
                           }}
@@ -472,7 +476,8 @@ export default function InvestmentsPage() {
                           variant="outline"
                           size="icon"
                           className="h-9 w-9"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedInvestment(inv);
                             setEditRate(String(inv.yieldRate));
                             setEditHasCdiBonus(!!inv.cdiBonusPercent);
@@ -772,6 +777,13 @@ export default function InvestmentsPage() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* Investment Detail Sheet */}
+      <InvestmentDetailSheet
+        investment={detailInvestment}
+        open={!!detailInvestment}
+        onOpenChange={(open) => { if (!open) setDetailInvestment(null); }}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!investmentToDelete} onOpenChange={() => setInvestmentToDelete(null)}>
