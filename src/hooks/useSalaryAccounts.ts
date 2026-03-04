@@ -81,17 +81,9 @@ export function useSalaryAccounts() {
     await loadAccounts();
   }, [loadAccounts]);
 
-  const addIncome = useCallback(async (
-    data: Omit<SalaryIncomeEntry, 'id'>,
-    options?: {
-      installments?: number;
-      isInstallmentTotal?: boolean;
-      isRecurring?: boolean;
-      recurrenceType?: 'weekly' | 'monthly' | 'yearly';
-    }
-  ): Promise<boolean> => {
+  const addIncome = useCallback(async (data: Omit<SalaryIncomeEntry, 'id'>): Promise<boolean> => {
     const entry: SalaryIncomeEntry = { ...data, id: generateId() };
-    const result = await addSalaryIncomeEntry(entry, options);
+    const result = await addSalaryIncomeEntry(entry);
     if (!result.success) {
       toast.error(result.error);
       return false;

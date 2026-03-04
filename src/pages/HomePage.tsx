@@ -6,7 +6,6 @@ import { BalanceCard } from '@/components/home/BalanceCard';
 import { CoverageAlert } from '@/components/home/CoverageAlert';
 import { TransferAlert } from '@/components/home/TransferAlert';
 import { PendingTransactionsAlert } from '@/components/home/PendingTxAlert';
-import { PaymentSuggestionAlert } from '@/components/salary/PaymentSuggestionAlert';
 import { MonthSelector } from '@/components/transactions/MonthSelector';
 import { StatementList } from '@/components/transactions/StatementList';
 import { StatementFilter, FilterOptions } from '@/components/transactions/StatementFilter';
@@ -44,7 +43,6 @@ export default function HomePage() {
   const [coverageInfo, setCoverageInfo] = useState<{ amount: number; investmentName: string } | null>(null);
   const [transferInfo, setTransferInfo] = useState<{ amount: number; investmentName: string } | null>(null);
   const [showPendingAlert, setShowPendingAlert] = useState(true);
-  const [paymentSuggestion, setPaymentSuggestion] = useState<{ id: string; amount: number; description?: string; mandatoryAccountId?: string } | null>(null);
 
   // Use the new statement hook for display
   const { items, loading, totals, balance, balanceData, refresh: refreshStatement } = useStatement(month);
@@ -255,16 +253,6 @@ export default function HomePage() {
         refreshInvestments();
       }
       
-      // Show payment suggestion for expenses
-      if (tx.type === 'expense') {
-        setPaymentSuggestion({
-          id: Date.now().toString(),
-          amount: tx.amount,
-          description: tx.description,
-          mandatoryAccountId: tx.mandatoryAccountId,
-        });
-      }
-      
       refreshStatement();
     }
   };
@@ -337,14 +325,6 @@ export default function HomePage() {
               toggleStatus(id);
             }}
             onDismiss={() => setShowPendingAlert(false)}
-          />
-        )}
-
-        {/* Payment Suggestion Alert */}
-        {paymentSuggestion && (
-          <PaymentSuggestionAlert
-            expense={paymentSuggestion}
-            onDismiss={() => setPaymentSuggestion(null)}
           />
         )}
 

@@ -19,14 +19,6 @@ export interface SalaryIncomeEntry {
   description?: string;
   month: string; // YYYY-MM
   consolidated?: boolean; // Once true, amount cannot be changed
-  // Recurrence fields
-  isRecurring?: boolean;
-  recurrenceType?: 'weekly' | 'monthly' | 'yearly';
-  recurrenceId?: string;
-  // Installment fields
-  installments?: number;
-  currentInstallment?: number;
-  parentId?: string;
 }
 
 // CRUD for salary accounts
@@ -148,29 +140,17 @@ export async function getSalaryIncomeEntries(): Promise<SalaryIncomeEntry[]> {
 }
 
 /**
- * Calculate account balance dynamically:
- * (+) Income entries
- * (-) Expenses with mandatoryAccountId matching this account
+ * Calculate account balance dynamically from all income entries.
  */
 export async function getAccountBalance(accountId: string): Promise<number> {
   const entries = await getSalaryIncomeEntries();
-  const income = entries
+  return entries
     .filter(e => e.accountId === accountId)
     .reduce((sum, e) => sum + e.amount, 0);
-
-  // Subtract linked expenses
-  const { getAllTransactions } = await import('./storage');
-  const transactions = await getAllTransactions();
-  const linkedExpenses = transactions
-    .filter(tx => tx.mandatoryAccountId === accountId && tx.type === 'expense')
-    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-
-  return income - linkedExpenses;
 }
 
 /**
  * Get balances for all accounts at once (efficient batch).
- * Includes income entries minus linked expenses.
  */
 export async function getAllAccountBalances(): Promise<Map<string, number>> {
   const entries = await getSalaryIncomeEntries();
@@ -178,17 +158,6 @@ export async function getAllAccountBalances(): Promise<Map<string, number>> {
   for (const e of entries) {
     balances.set(e.accountId, (balances.get(e.accountId) ?? 0) + e.amount);
   }
-
-  // Subtract linked expenses
-  const { getAllTransactions } = await import('./storage');
-  const transactions = await getAllTransactions();
-  for (const tx of transactions) {
-    if (tx.mandatoryAccountId && tx.type === 'expense') {
-      const current = balances.get(tx.mandatoryAccountId) ?? 0;
-      balances.set(tx.mandatoryAccountId, current - Math.abs(tx.amount));
-    }
-  }
-
   return balances;
 }
 
@@ -205,78 +174,15 @@ export async function getTotalSalaryBalance(): Promise<number> {
 
 /**
  * Add income entry. Automatically consolidates (marks as immutable) after saving.
- * Supports recurring and installment entries.
  */
-export async function addSalaryIncomeEntry(
-  entry: SalaryIncomeEntry,
-  options?: {
-    installments?: number;
-    isInstallmentTotal?: boolean;
-    isRecurring?: boolean;
-    recurrenceType?: 'weekly' | 'monthly' | 'yearly';
-  }
-): Promise<{ success: boolean; error?: string }> {
+export async function addSalaryIncomeEntry(entry: SalaryIncomeEntry): Promise<{ success: boolean; error?: string }> {
   if (entry.amount <= 0) {
     return { success: false, error: 'O valor deve ser maior que zero.' };
   }
 
   const entries = await getSalaryIncomeEntries();
-  const { addMonthsToDate, addWeeksToDate, addYearsToDate, getMonthFromDate } = await import('./dateUtils');
-  const { generateId } = await import('./formatters');
-
-  if (options?.isRecurring) {
-    // Generate recurring entries for 5 years
-    const recurrenceId = entry.id;
-    const recurrenceType = options.recurrenceType || 'monthly';
-    let currentDate = entry.date;
-    const maxEndDate = addYearsToDate(entry.date, 5);
-
-    while (currentDate <= maxEndDate) {
-      entries.push({
-        ...entry,
-        id: generateId(),
-        date: currentDate,
-        month: getMonthFromDate(currentDate),
-        consolidated: true,
-        isRecurring: true,
-        recurrenceType,
-        recurrenceId,
-      });
-
-      switch (recurrenceType) {
-        case 'weekly': currentDate = addWeeksToDate(currentDate, 1); break;
-        case 'yearly': currentDate = addYearsToDate(currentDate, 1); break;
-        default: currentDate = addMonthsToDate(currentDate, 1); break;
-      }
-    }
-  } else if (options?.installments && options.installments > 1) {
-    // Generate installment entries
-    const parentId = entry.id;
-    const installmentAmount = options.isInstallmentTotal
-      ? entry.amount / options.installments
-      : entry.amount;
-
-    for (let i = 0; i < options.installments; i++) {
-      const installmentDate = addMonthsToDate(entry.date, i);
-      entries.push({
-        ...entry,
-        id: i === 0 ? parentId : generateId(),
-        parentId: i === 0 ? undefined : parentId,
-        date: installmentDate,
-        month: getMonthFromDate(installmentDate),
-        amount: installmentAmount,
-        description: `${entry.description || 'Receita'} (${i + 1}/${options.installments})`,
-        installments: options.installments,
-        currentInstallment: i + 1,
-        consolidated: true,
-      });
-    }
-  } else {
-    // Single entry
-    entry.consolidated = true;
-    entries.push(entry);
-  }
-
+  entry.consolidated = true;
+  entries.push(entry);
   await defaultAdapter.setItem(SALARY_INCOME_KEY, entries);
   return { success: true };
 }
