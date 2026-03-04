@@ -26,17 +26,10 @@ public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "AdMob";
     
-        private static final String BANNER_ID = "ca-app-pub-2671131515539767/2926247201";
-        private static final String APP_OPEN_ID = "ca-app-pub-2671131515539767/9244243541";
-        private static final String INTERSTITIAL_ID = "ca-app-pub-2671131515539767/8950902951";
-        // Banner (Teste)
-        //private static final String BANNER_ID = "ca-app-pub-3940256099942544/6300978111";
-
-        // App Open (Teste)
-        //private static final String APP_OPEN_ID = "ca-app-pub-3940256099942544/9257395921";
-
-        // Interstitial / Intersticial (Teste)•
-        //private static final String INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712";
+    // IDs de Teste
+    private static final String BANNER_ID = "ca-app-pub-3940256099942544/6300978111";
+    private static final String APP_OPEN_ID = "ca-app-pub-3940256099942544/9257395921";
+    private static final String INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712";
     
     private AdView adView;
     private AppOpenAd appOpenAd;
@@ -49,9 +42,10 @@ public class MainActivity extends BridgeActivity {
     private boolean isInterstitialLoopStarted = false;
     private boolean splashFinished = false;
     private boolean adReadyToShow = false;
-    private static final long AD_INTERVAL = 8 * 60 * 1000;
+    
+    private static final long AD_INTERVAL = 8 * 60 * 1000; // 8 minutos
     private static final long SPLASH_MIN_TIME = 2500; // 2.5s
-    private static final long AD_EXTRA_DELAY = 100;   // ✅ NOVO: +0.1s após splash
+    private static final long AD_EXTRA_DELAY = 100; // +0.1s após splash
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +53,6 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
 
         registerPlugin(SharePlugin.class);
-
         Log.d(TAG, "onCreate iniciado");
         
         adHandler = new Handler(Looper.getMainLooper());
@@ -68,16 +61,15 @@ public class MainActivity extends BridgeActivity {
             Log.d(TAG, "MobileAds inicializado");
         });
 
+        // ✅ ALTERADO: Agora adiciona banner no container específico, não no root
         createBanner();
         loadAppOpenAd();
         loadInterstitial();
         
-        // ✅ ALTERADO: Adiciona +0.1s após o splash
         adHandler.postDelayed(() -> {
             splashFinished = true;
             Log.d(TAG, "Splash terminado, adReadyToShow=" + adReadyToShow);
             
-            // ✅ NOVO: Espera mais 0.1s antes de mostrar
             if (adReadyToShow && isFirstLaunch) {
                 adHandler.postDelayed(() -> {
                     if (isFirstLaunch) {
@@ -90,6 +82,10 @@ public class MainActivity extends BridgeActivity {
         }, SPLASH_MIN_TIME);
     }
 
+    /**
+     * ✅ ALTERADO: Banner agora é adicionado no FrameLayout específico (ad_container)
+     * em vez de ser adicionado diretamente no root, evitando sobreposição do WebView
+     */
     private void createBanner() {
         Log.d(TAG, "Criando banner...");
         
@@ -100,17 +96,31 @@ public class MainActivity extends BridgeActivity {
         AdRequest adRequest = new AdRequest.Builder().build();
         adView.loadAd(adRequest);
 
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-        );
-        params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-
-        FrameLayout rootLayout = findViewById(android.R.id.content);
+        // ✅ ALTERADO: Busca o container específico do layout em vez do root
+        FrameLayout adContainer = findViewById(R.id.ad_container);
         
-        if (rootLayout != null) {
-            rootLayout.addView(adView, params);
-            Log.d(TAG, "Banner adicionado");
+        if (adContainer != null) {
+            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+            );
+            params.gravity = Gravity.CENTER; // Centralizado no container
+            
+            adContainer.addView(adView, params);
+            Log.d(TAG, "Banner adicionado ao ad_container");
+        } else {
+            // Fallback: adiciona no root se não encontrar o container (para compatibilidade)
+            Log.w(TAG, "ad_container não encontrado, usando root como fallback");
+            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+            );
+            params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+            
+            FrameLayout rootLayout = findViewById(android.R.id.content);
+            if (rootLayout != null) {
+                rootLayout.addView(adView, params);
+            }
         }
     }
 
@@ -131,7 +141,6 @@ public class MainActivity extends BridgeActivity {
                         adReadyToShow = true;
                         Log.d(TAG, "App Open Ad carregado, splashFinished=" + splashFinished);
                         
-                        // ✅ ALTERADO: Também adiciona +0.1s aqui
                         if (splashFinished && isFirstLaunch) {
                             adHandler.postDelayed(() -> {
                                 if (isFirstLaunch) {
