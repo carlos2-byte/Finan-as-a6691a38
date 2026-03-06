@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Repeat, Calendar, CreditCard as CardIcon, Package, Banknote, Wallet } from 'lucide-react';
 import { AccountSelector } from '@/components/salary/AccountSelector';
+import { CurrencyInput, parseCurrencyValue } from '@/components/ui/currency-input';
 
 interface AddTransactionSheetProps {
   open: boolean;
@@ -37,6 +38,15 @@ interface AddTransactionSheetProps {
 }
 
 const defaultCategories = getCategories();
+
+/** Format a number to the Brazilian currency input format */
+function numberToCurrencyStr(num: number): string {
+  if (!num || num === 0) return '';
+  const fixed = Math.abs(num).toFixed(2);
+  const [intPart, decPart] = fixed.split('.');
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${formattedInt},${decPart}`;
+}
 
 export function AddTransactionSheet({ 
   open, 
@@ -78,7 +88,13 @@ export function AddTransactionSheet({
     if (open) {
       if (editingTransaction) {
         setType(editingTransaction.type);
-        setAmount(Math.abs(editingTransaction.amount).toString());
+        // For installment transactions, show the original launched value (amount * installments)
+        const editAmount = Math.abs(editingTransaction.amount);
+        const totalInstallments = editingTransaction.installments && editingTransaction.installments > 1
+          ? editingTransaction.installments
+          : 1;
+        const originalValue = editAmount * totalInstallments;
+        setAmount(numberToCurrencyStr(originalValue));
         setDescription(editingTransaction.description?.replace(/\s*\(\d+\/\d+\)$/, '') || '');
         setCategory(editingTransaction.category || 'other');
         setDate(editingTransaction.date);
@@ -97,7 +113,6 @@ export function AddTransactionSheet({
         setCategory('other');
         setDate(getLocalDateString());
         setPaymentMethod('cash');
-        // Auto-select default card
         const defaultCard = cards.find(c => c.isDefault === true);
         setCardId(defaultCard ? defaultCard.id : '');
         setInstallments(undefined);
@@ -110,12 +125,10 @@ export function AddTransactionSheet({
     }
   }, [open, editingTransaction, cards]);
 
-  // No longer auto-set end date for recurrence - it will be indefinite
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsedAmount = parseFloat(amount.replace(',', '.'));
-    if (isNaN(parsedAmount)) return;
+    const parsedAmount = parseCurrencyValue(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
     const isCardPayment = paymentMethod === 'credit';
     let invoiceMonth = undefined;
@@ -124,7 +137,6 @@ export function AddTransactionSheet({
       invoiceMonth = getInvoiceMonth(date, card?.closingDay || 25);
     }
 
-    // Treat empty or invalid installments as 1
     const actualInstallments = installments !== undefined && installments > 0 ? installments : 1;
 
     setIsSubmitting(true);
@@ -189,20 +201,7 @@ export function AddTransactionSheet({
             {/* Amount */}
             <div className="space-y-2">
               <Label>Valor</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  R$
-                </span>
-                <Input 
-                  type="text" 
-                  inputMode="decimal" 
-                  value={amount} 
-                  onChange={e => setAmount(e.target.value)} 
-                  placeholder="0,00" 
-                  className="pl-10"
-                  required 
-                />
-              </div>
+              <CurrencyInput value={amount} onChange={setAmount} required />
             </div>
 
             {/* Description */}
@@ -289,7 +288,7 @@ export function AddTransactionSheet({
                   </div>
                 )}
 
-                {/* Installments (available for ALL transactions, not just cards) */}
+                {/* Installments */}
                 {!isRecurring && (
                   <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
                     <div className="flex items-center gap-2">
@@ -321,7 +320,7 @@ export function AddTransactionSheet({
                   </div>
                 )}
 
-                {/* Ask if amount is per installment or total - ALWAYS when installments > 1 */}
+                {/* Ask if amount is per installment or total */}
                 {!isRecurring && installments !== undefined && installments > 1 && (
                   <div className="space-y-2 p-3 border rounded-lg bg-muted/10">
                     <Label>O valor informado é:</Label>
@@ -387,7 +386,7 @@ export function AddTransactionSheet({
                   </div>
                 )}
 
-                {/* Card Selection (only for credit) */}
+                {/* Card Selection - opens upward */}
                 {paymentMethod === 'credit' && type === 'expense' && cards.length > 0 && (
                   <div className="space-y-2">
                     <Label>Cartão</Label>
@@ -395,7 +394,7 @@ export function AddTransactionSheet({
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o cartão" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent side="top">
                         {cards.map(c => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                         ))}
@@ -406,7 +405,7 @@ export function AddTransactionSheet({
               </>
             )}
 
-            {/* Mandatory Salary Account (for all transaction types) */}
+            {/* Mandatory Salary Account */}
             <AccountSelector
               value={mandatoryAccountId}
               onChange={setMandatoryAccountId}

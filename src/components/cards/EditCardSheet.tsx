@@ -14,12 +14,22 @@ import {
 } from '@/components/ui/select';
 import { CreditCard } from '@/lib/storage';
 import { AccountSelector } from '@/components/salary/AccountSelector';
+import { CurrencyInput, parseCurrencyValue } from '@/components/ui/currency-input';
+
+/** Format a number to the Brazilian currency input format */
+function numberToCurrencyStr(num: number): string {
+  if (!num || num === 0) return '';
+  const fixed = Math.abs(num).toFixed(2);
+  const [intPart, decPart] = fixed.split('.');
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${formattedInt},${decPart}`;
+}
 
 interface EditCardSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   card: CreditCard | null;
-  cards?: CreditCard[]; // All cards for selecting payer
+  cards?: CreditCard[];
   onSubmit: (card: CreditCard) => Promise<void>;
 }
 
@@ -35,7 +45,6 @@ export function EditCardSheet({ open, onOpenChange, card, cards = [], onSubmit }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mandatoryAccountId, setMandatoryAccountId] = useState('');
 
-  // Filter available payer cards (exclude current card and cards that cannot pay other cards)
   const availablePayerCards = cards.filter(c => 
     c.id !== card?.id && c.canPayOtherCards !== false
   );
@@ -44,7 +53,7 @@ export function EditCardSheet({ open, onOpenChange, card, cards = [], onSubmit }
     if (card && open) {
       setName(card.name);
       setLast4(card.last4 || '');
-      setLimit(card.limit?.toString() || '');
+      setLimit(card.limit ? numberToCurrencyStr(card.limit) : '');
       setClosingDay(card.closingDay?.toString() || '25');
       setDueDay(card.dueDay?.toString() || '5');
       setCanPayOtherCards(card.canPayOtherCards !== false);
@@ -64,7 +73,7 @@ export function EditCardSheet({ open, onOpenChange, card, cards = [], onSubmit }
         ...card,
         name: name.trim(),
         last4: last4.trim() || undefined,
-        limit: limit ? parseFloat(limit.replace(',', '.')) : undefined,
+        limit: limit ? parseCurrencyValue(limit) : undefined,
         closingDay: parseInt(closingDay),
         dueDay: parseInt(dueDay),
         canPayOtherCards,
@@ -106,18 +115,7 @@ export function EditCardSheet({ open, onOpenChange, card, cards = [], onSubmit }
 
           <div className="space-y-2">
             <Label htmlFor="editLimit">Limite (opcional)</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
-              <Input 
-                id="editLimit" 
-                type="text"
-                inputMode="decimal"
-                value={limit} 
-                onChange={e => setLimit(e.target.value)} 
-                placeholder="0,00"
-                className="pl-10"
-              />
-            </div>
+            <CurrencyInput value={limit} onChange={setLimit} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

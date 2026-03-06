@@ -13,11 +13,12 @@ import {
 } from '@/components/ui/select';
 import { CreditCard } from '@/lib/storage';
 import { AccountSelector } from '@/components/salary/AccountSelector';
+import { CurrencyInput, parseCurrencyValue } from '@/components/ui/currency-input';
 
 interface AddCardSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  cards?: CreditCard[]; // Existing cards for selecting payer
+  cards?: CreditCard[];
   onSubmit: (card: Omit<CreditCard, 'id'>) => Promise<CreditCard>;
 }
 
@@ -32,7 +33,6 @@ export function AddCardSheet({ open, onOpenChange, cards = [], onSubmit }: AddCa
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mandatoryAccountId, setMandatoryAccountId] = useState('');
 
-  // Filter available payer cards (cards that can pay other cards)
   const availablePayerCards = cards.filter(c => c.canPayOtherCards !== false);
 
   const resetForm = () => {
@@ -55,7 +55,7 @@ export function AddCardSheet({ open, onOpenChange, cards = [], onSubmit }: AddCa
       await onSubmit({
         name: name.trim(),
         last4: last4.trim() || undefined,
-        limit: limit ? parseFloat(limit.replace(',', '.')) : undefined,
+        limit: limit ? parseCurrencyValue(limit) : undefined,
         closingDay: parseInt(closingDay),
         dueDay: parseInt(dueDay),
         defaultPayerCardId: defaultPayerCardId || undefined,
@@ -97,18 +97,7 @@ export function AddCardSheet({ open, onOpenChange, cards = [], onSubmit }: AddCa
 
           <div className="space-y-2">
             <Label htmlFor="limit">Limite (opcional)</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
-              <Input 
-                id="limit" 
-                type="text"
-                inputMode="decimal"
-                value={limit} 
-                onChange={e => setLimit(e.target.value)} 
-                placeholder="0,00"
-                className="pl-10"
-              />
-            </div>
+            <CurrencyInput value={limit} onChange={setLimit} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -147,7 +136,23 @@ export function AddCardSheet({ open, onOpenChange, cards = [], onSubmit }: AddCa
           {/* Default Payer Card Selection */}
           {availablePayerCards.length > 0 && (
             <div className="space-y-2 p-4 bg-muted/30 rounded-lg">
-...
+              <Label>Pagar fatura com outro cartão</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Selecione qual cartão será usado para pagar a fatura deste cartão automaticamente
+              </p>
+              <Select value={defaultPayerCardId || 'none'} onValueChange={(val) => setDefaultPayerCardId(val === 'none' ? '' : val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhum (pagar manualmente)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum (pagar manualmente)</SelectItem>
+                  {availablePayerCards.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} {c.last4 ? `(•••• ${c.last4})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

@@ -37,6 +37,13 @@ import { formatCurrency, getCurrentMonth } from '@/lib/formatters';
 import { formatDateBR } from '@/lib/dateUtils';
 import { Investment, getMonthlyYieldEstimate, getDailyYieldEstimate, getInvestmentTaxInfo } from '@/lib/investments';
 import { toast } from '@/hooks/use-toast';
+import { CurrencyInput, parseCurrencyValue } from '@/components/ui/currency-input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function InvestmentsPage() {
   const { 
@@ -80,7 +87,7 @@ export default function InvestmentsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(newAmount.replace(',', '.'));
+    const amount = parseCurrencyValue(newAmount);
     if (!newName.trim() || isNaN(amount) || amount <= 0) return;
 
     setIsSubmitting(true);
@@ -106,7 +113,7 @@ export default function InvestmentsPage() {
     e.preventDefault();
     if (!selectedInvestment) return;
     
-    const amount = parseFloat(actionAmount.replace(',', '.'));
+    const amount = parseCurrencyValue(actionAmount);
     if (isNaN(amount) || amount <= 0) return;
 
     setIsSubmitting(true);
@@ -125,7 +132,7 @@ export default function InvestmentsPage() {
     e.preventDefault();
     if (!selectedInvestment) return;
     
-    const amount = parseFloat(actionAmount.replace(',', '.'));
+    const amount = parseCurrencyValue(actionAmount);
     if (isNaN(amount) || amount <= 0) return;
 
     if (amount > selectedInvestment.currentAmount) {
@@ -524,20 +531,7 @@ export default function InvestmentsPage() {
             </div>
             <div className="space-y-2">
               <Label>Valor Inicial</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  R$
-                </span>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={newAmount}
-                  onChange={e => setNewAmount(e.target.value)}
-                  placeholder="0,00"
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <CurrencyInput value={newAmount} onChange={setNewAmount} required />
             </div>
             <div className="space-y-2">
               <Label>Taxa de Referência (% a.a.)</Label>
@@ -709,63 +703,37 @@ export default function InvestmentsPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Deposit Sheet */}
-      <Sheet open={showDepositSheet} onOpenChange={setShowDepositSheet}>
-        <SheetContent side="bottom" className="rounded-t-3xl">
-          <SheetHeader className="mb-6">
-            <SheetTitle>Depositar em {selectedInvestment?.name}</SheetTitle>
-          </SheetHeader>
+      {/* Deposit Dialog - centered */}
+      <Dialog open={showDepositSheet} onOpenChange={setShowDepositSheet}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Depositar em {selectedInvestment?.name}</DialogTitle>
+          </DialogHeader>
           <form onSubmit={handleDeposit} className="space-y-4">
             <div className="space-y-2">
               <Label>Valor</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  R$
-                </span>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={actionAmount}
-                  onChange={e => setActionAmount(e.target.value)}
-                  placeholder="0,00"
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <CurrencyInput value={actionAmount} onChange={setActionAmount} required />
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Depositando...' : 'Confirmar Depósito'}
             </Button>
           </form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
-      {/* Withdraw Sheet */}
-      <Sheet open={showWithdrawSheet} onOpenChange={setShowWithdrawSheet}>
-        <SheetContent side="bottom" className="rounded-t-3xl">
-          <SheetHeader className="mb-6">
-            <SheetTitle>Resgatar de {selectedInvestment?.name}</SheetTitle>
-          </SheetHeader>
+      {/* Withdraw Dialog - centered */}
+      <Dialog open={showWithdrawSheet} onOpenChange={setShowWithdrawSheet}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resgatar de {selectedInvestment?.name}</DialogTitle>
+          </DialogHeader>
           <form onSubmit={handleWithdraw} className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Saldo disponível: {formatCurrency(selectedInvestment?.currentAmount || 0)}
             </p>
             <div className="space-y-2">
               <Label>Valor</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  R$
-                </span>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={actionAmount}
-                  onChange={e => setActionAmount(e.target.value)}
-                  placeholder="0,00"
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <CurrencyInput value={actionAmount} onChange={setActionAmount} required />
               <p className="text-xs text-muted-foreground">
                 IR descontado automaticamente (tabela regressiva: 22,5% a 15%).
                 O valor líquido será adicionado como receita.
@@ -775,8 +743,8 @@ export default function InvestmentsPage() {
               {isSubmitting ? 'Resgatando...' : 'Confirmar Resgate'}
             </Button>
           </form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Investment Detail Sheet */}
       <InvestmentDetailSheet

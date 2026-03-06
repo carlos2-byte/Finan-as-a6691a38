@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SalaryAccount, SalaryIncomeEntry } from '@/lib/salaryAccounts';
 import { getLocalDateString, getMonthFromDate } from '@/lib/dateUtils';
+import { CurrencyInput, parseCurrencyValue } from '@/components/ui/currency-input';
 
 interface AddSalaryIncomeSheetProps {
   open: boolean;
@@ -28,7 +29,7 @@ export function AddSalaryIncomeSheet({ open, onOpenChange, account, onSubmit }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!account) return;
-    const parsedAmount = parseFloat(amount.replace(',', '.'));
+    const parsedAmount = parseCurrencyValue(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
     setIsSubmitting(true);
@@ -57,18 +58,7 @@ export function AddSalaryIncomeSheet({ open, onOpenChange, account, onSubmit }: 
         <form onSubmit={handleSubmit} className="space-y-5 pb-6">
           <div className="space-y-2">
             <Label>Valor</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                placeholder="0,00"
-                className="pl-10"
-                required
-              />
-            </div>
+            <CurrencyInput value={amount} onChange={setAmount} required />
           </div>
 
           <div className="space-y-2">
