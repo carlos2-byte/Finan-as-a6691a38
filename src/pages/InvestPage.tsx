@@ -87,7 +87,7 @@ export default function InvestmentsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(newAmount.replace(',', '.'));
+    const amount = parseCurrencyValue(newAmount);
     if (!newName.trim() || isNaN(amount) || amount <= 0) return;
 
     setIsSubmitting(true);
@@ -113,7 +113,7 @@ export default function InvestmentsPage() {
     e.preventDefault();
     if (!selectedInvestment) return;
     
-    const amount = parseFloat(actionAmount.replace(',', '.'));
+    const amount = parseCurrencyValue(actionAmount);
     if (isNaN(amount) || amount <= 0) return;
 
     setIsSubmitting(true);
@@ -132,7 +132,7 @@ export default function InvestmentsPage() {
     e.preventDefault();
     if (!selectedInvestment) return;
     
-    const amount = parseFloat(actionAmount.replace(',', '.'));
+    const amount = parseCurrencyValue(actionAmount);
     if (isNaN(amount) || amount <= 0) return;
 
     if (amount > selectedInvestment.currentAmount) {
