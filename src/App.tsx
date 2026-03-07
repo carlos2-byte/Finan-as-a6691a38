@@ -116,6 +116,7 @@ function AppContent() {
           <Route path="/cards" element={<CardsPage />} />
           <Route path="/cards/:cardId" element={<CardStatementPage />} />
           <Route path="/salary" element={<SalaryAccountsPage />} />
+          <Route path="/receitas" element={<SalaryAccountsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
