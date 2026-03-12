@@ -346,8 +346,8 @@ export default function InvestmentsPage() {
                   <Card key={inv.id} className="cursor-pointer" onClick={() => setDetailInvestment(inv)}>
                     <CardContent className="pt-4">
                       <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <div>
+                          <div className="flex items-center gap-2">
                             <h3 className="font-semibold">{inv.name}</h3>
                             {inv.type && (
                               <span className="text-xs bg-secondary px-2 py-0.5 rounded">
@@ -382,7 +382,7 @@ export default function InvestmentsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive h-8 w-8 shrink-0"
+                          className="text-destructive h-8 w-8"
                           onClick={(e) => { e.stopPropagation(); setInvestmentToDelete(inv); }}
                         >
                           <Trash2 className="h-4 w-4" />

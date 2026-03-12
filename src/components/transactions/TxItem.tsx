@@ -189,7 +189,7 @@ export function TransactionItem({
       </span>
       
       {showActions && (
-        <div className="flex gap-0.5 shrink-0">
+        <div className="flex gap-0.5">
           {onEdit && (
             <Button
               variant="ghost"
