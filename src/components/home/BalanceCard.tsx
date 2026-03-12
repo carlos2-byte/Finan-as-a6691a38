@@ -75,7 +75,7 @@ export function BalanceCard({
           </div>
           <p
             className={cn(
-              'text-3xl font-bold tabular-nums',
+              'text-3xl font-bold tabular-nums truncate',
               currentBalance >= 0 ? 'text-success' : 'text-destructive'
             )}
           >
