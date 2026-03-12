@@ -66,7 +66,7 @@ export function InvoiceItem({ invoice, onClick, isPaid = false, isOverdue = fals
           </div>
         </div>
 
-        <span className="font-semibold text-sm tabular-nums text-foreground whitespace-nowrap">
+        <span className="font-semibold text-sm tabular-nums text-foreground truncate text-right max-w-[44%]">
           -{formatCurrency(invoice.total)}
         </span>
       </button>

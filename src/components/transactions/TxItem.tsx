@@ -109,7 +109,7 @@ export function TransactionItem({
 
   return (
     <div className={cn(
-      "flex items-center gap-2 py-2 group rounded-lg px-1 transition-colors",
+      "flex items-center gap-2 py-2 group rounded-lg px-1 transition-colors min-w-0",
       showStatusIndicator && !isPaid && isOverdue && "bg-destructive/10",
       showStatusIndicator && !isPaid && !isOverdue && "bg-warning/10",
     )}>
@@ -179,45 +179,52 @@ export function TransactionItem({
         </div>
       </div>
 
-      <span
+      <div
         className={cn(
-          'font-semibold text-sm tabular-nums whitespace-nowrap',
-          isIncome ? 'text-success' : 'text-foreground'
+          'ml-auto flex items-center min-w-0',
+          showActions ? 'max-w-[56%] gap-1' : 'max-w-[44%]'
         )}
       >
-        {isIncome ? '+' : ''}{formatCurrency(transaction.amount)}
-      </span>
-      
-      {showActions && (
-        <div className="flex gap-0.5">
-          {onEdit && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 touch-manipulation"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(transaction);
-              }}
-            >
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
+        <span
+          className={cn(
+            'font-semibold text-sm tabular-nums truncate text-right min-w-0 flex-1',
+            isIncome ? 'text-success' : 'text-foreground'
           )}
-          {onDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 touch-manipulation"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(transaction);
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-            </Button>
-          )}
-        </div>
-      )}
+        >
+          {isIncome ? '+' : ''}{formatCurrency(transaction.amount)}
+        </span>
+
+        {showActions && (
+          <div className="flex gap-0.5 shrink-0">
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 touch-manipulation"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(transaction);
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 touch-manipulation"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(transaction);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
