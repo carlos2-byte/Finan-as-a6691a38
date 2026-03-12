@@ -392,7 +392,7 @@ export default function InvestmentsPage() {
                       <div className="flex items-end justify-between mb-3">
                         <div>
                           <p className="text-sm text-muted-foreground">Saldo atual</p>
-                          <p className="text-xl font-bold tabular-nums">
+                          <p className="text-xl font-bold tabular-nums truncate">
                             {formatCurrency(inv.currentAmount)}
                           </p>
                           {/* totalYield kept for internal use but hidden from UI */}
