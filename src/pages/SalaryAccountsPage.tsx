@@ -179,7 +179,7 @@ export default function SalaryAccountsPage() {
                             </span>
                           )}
                         </div>
-                        <p className="mt-2 text-lg font-bold">
+                        <p className="mt-2 text-lg font-bold truncate">
                           {formatCurrency(account.balance)}
                           <span className="text-xs font-normal text-muted-foreground ml-1">(calculado)</span>
                         </p>
