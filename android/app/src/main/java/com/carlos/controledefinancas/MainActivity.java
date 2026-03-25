@@ -27,10 +27,14 @@ public class MainActivity extends BridgeActivity {
     private static final String TAG = "AdMob";
     
     // IDs de Teste
+    //private static final String BANNER_ID = "ca-app-pub-3940256099942544/6300978111";
+    //private static final String APP_OPEN_ID = "ca-app-pub-3940256099942544/9257395921";
+    //private static final String INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712";
     private static final String BANNER_ID = "ca-app-pub-3940256099942544/6300978111";
-    private static final String APP_OPEN_ID = "ca-app-pub-3940256099942544/9257395921";
+    private static final String APP_OPEN_ID = "ca-app-pub-3940256099942544/9257395915";
     private static final String INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712";
     
+
     private AdView adView;
     private AppOpenAd appOpenAd;
     private InterstitialAd mInterstitialAd;
